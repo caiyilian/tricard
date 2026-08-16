@@ -203,7 +203,7 @@ export default function GamePage({ state, comments, onPlay, onPass, onBid }: Pro
         </div>
       )}
 
-      {/* 评论 */}
+      {/* 评论（暂时隐藏）
       {comments.length > 0 && (
         <div style={{ position: 'fixed', bottom: 20, right: 20, maxWidth: 300, background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: 12 }}>
           {comments.slice(-3).reverse().map((c, i) => (
@@ -213,6 +213,7 @@ export default function GamePage({ state, comments, onPlay, onPass, onBid }: Pro
           ))}
         </div>
       )}
+      */}
     </div>
   );
 }

@@ -322,6 +322,7 @@ async def _run_ai(sio, room: Room, seat: int) -> None:
     ai = room.ai_players[seat]
     g = room.game
     ctx = {"game": g}
+    t0 = __import__("time").time()
     try:
         move = await asyncio.wait_for(
             asyncio.to_thread(_ai_call, ai, g, seat, ctx),
@@ -329,6 +330,11 @@ async def _run_ai(sio, room: Room, seat: int) -> None:
         )
     except asyncio.TimeoutError:
         move = g.timeout_action(seat)
+    elapsed = __import__("time").time() - t0
+    # AI 出牌太快时至少等 3s，让玩家有反应时间
+    wait = max(0, 3.0 - elapsed)
+    if wait > 0:
+        await asyncio.sleep(wait)
     if move is None:
         g.do_pass(seat)
     else:
