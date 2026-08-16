@@ -57,11 +57,12 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
   const handleBid = (action: string) => onBid(action);
   const handleLeave = () => { setShowResult(false); onLeave(); };
 
-  // 每座最近一手出牌
+  // 每座本回合（当前轮次）最近一手出牌
   const lastPlays: Record<number, string[]> = {};
   if (priv.history) {
-    for (const e of priv.history.slice().reverse()) {
-      if (e.action === 'play' && e.labels?.length && !lastPlays[e.seat]) {
+    const currentTrick = priv.trick;
+    for (const e of priv.history) {
+      if (e.trick === currentTrick && e.action === 'play' && e.labels?.length) {
         lastPlays[e.seat] = e.labels;
       }
     }
