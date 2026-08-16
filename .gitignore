@@ -2,7 +2,8 @@
 github-token.txt
 sensenova_apikey.txt
 *.env
-.env*
+.env
+.env.local
 
 # local-only docs & offline file downloads (do not upload)
 docs_local/
