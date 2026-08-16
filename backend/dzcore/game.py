@@ -150,11 +150,13 @@ class Game:
         self.status = self.STATUS_FINISHED
         self.winner_seat = seat
         self.winner_team = self.team_of(seat)
-        # 春天：地主一手没被打断就出完（农民没出过牌）；或农民赢时地主没出过牌
+        # 春天/反春：一方出完时，另一方（们）一张都没打出过
+        landlord_played = any(e["action"] == "play" and e["seat"] == self.landlord_seat for e in self.history)
+        farmer_played = any(e["action"] == "play" and e["seat"] != self.landlord_seat for e in self.history)
         if self.winner_team == "landlord":
-            self.spring = all(self.hand_size(s) == 17 for s in range(3) if s != self.landlord_seat)
+            self.spring = not farmer_played
         else:
-            self.spring = self.hand_size(self.landlord_seat) == 20
+            self.spring = not landlord_played
         self._emit("game_end", winner=seat, team=self.winner_team, bombs=self.bomb_count, spring=self.spring)
 
     def _emit(self, event: str, **kw) -> None:
