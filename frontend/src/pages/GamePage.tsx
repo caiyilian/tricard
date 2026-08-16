@@ -129,9 +129,9 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
         {priv.landlord_seat !== null && <span>{priv.landlord_seat === 0 ? '我是地主' : '我是农民'}</span>}
       </div>
 
-      {/* 顶部：上家(左) + 时钟(中) + 下家(右) */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 20px 0', position: 'relative' }}>
-        {/* 上家（左上） */}
+      {/* 顶部：上家 | 底牌 | 下家 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 20px 0' }}>
+        {/* 上家 */}
         <div style={{ minWidth: 100 }}>
           <div style={{ background: '#16213e', padding: '8px 16px', borderRadius: 8, textAlign: 'center' }}>
             <div style={{ fontSize: 14 }}>{room.seats[1]?.nickname}</div>
@@ -139,31 +139,33 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
             <div style={{ fontSize: 28, fontWeight: 'bold', color: '#4ecca3' }}>{remaining[1]}</div>
             <div style={{ fontSize: 11, color: '#888' }}>张</div>
           </div>
-          {/* 上家出牌：向右展示 */}
-          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-start', minHeight: 56 }}>
-            {lastPlays[1]?.map((l, i) => (
-              <img key={i} src={cardImg(l)} style={{ width: 36, height: 52, borderRadius: 3, marginLeft: i > 0 ? -8 : 0 }} />
-            ))}
-          </div>
-        </div>
-
-        {/* 时钟 / 当前轮到谁 */}
-        {priv.status === 'playing' && (
-          <div style={{ textAlign: 'center', paddingTop: 8 }}>
-            <div style={{ fontSize: 12, color: '#888' }}>轮到 {room.seats[priv.turn ?? -1]?.nickname || '?'}</div>
-            {priv.can_act ? (
-              <div style={{ padding: '6px 20px', background: timer <= 10 ? '#e94560' : '#333', borderRadius: 12, fontSize: 22, fontWeight: 'bold', marginTop: 4 }}>
+          {/* 上家出牌区：轮到则显示时钟，否则显示上一次出的牌 */}
+          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-start', alignItems: 'center', minHeight: 56 }}>
+            {priv.turn === 1 ? (
+              <div style={{ padding: '4px 12px', background: timer <= 10 ? '#e94560' : '#333', borderRadius: 8, fontSize: 16, fontWeight: 'bold' }}>
                 ⏱ {timer}s
               </div>
             ) : (
-              <div style={{ padding: '6px 20px', background: '#333', borderRadius: 12, fontSize: 14, marginTop: 4 }}>
-                ⏳ 等待中
-              </div>
+              lastPlays[1]?.map((l, i) => (
+                <img key={i} src={cardImg(l)} style={{ width: 36, height: 52, borderRadius: 3, marginLeft: i > 0 ? -8 : 0 }} />
+              ))
             )}
+          </div>
+        </div>
+
+        {/* 底牌 */}
+        {priv.bottom && priv.bottom.length > 0 && (
+          <div style={{ textAlign: 'center', paddingTop: 8 }}>
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>底牌</div>
+            <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
+              {priv.bottom.map((l, i) => (
+                <img key={i} src={cardImg(l)} style={{ width: 36, height: 52, borderRadius: 3 }} />
+              ))}
+            </div>
           </div>
         )}
 
-        {/* 下家（右上） */}
+        {/* 下家 */}
         <div style={{ minWidth: 100 }}>
           <div style={{ background: '#16213e', padding: '8px 16px', borderRadius: 8, textAlign: 'center' }}>
             <div style={{ fontSize: 14 }}>{room.seats[2]?.nickname}</div>
@@ -171,22 +173,36 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
             <div style={{ fontSize: 28, fontWeight: 'bold', color: '#4ecca3' }}>{remaining[2]}</div>
             <div style={{ fontSize: 11, color: '#888' }}>张</div>
           </div>
-          {/* 下家出牌：向左展示 */}
-          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end', minHeight: 56 }}>
-            {lastPlays[2]?.map((l, i) => (
-              <img key={i} src={cardImg(l)} style={{ width: 36, height: 52, borderRadius: 3, marginLeft: i > 0 ? -8 : 0 }} />
-            ))}
+          {/* 下家出牌区：轮到则显示时钟，否则显示上一次出的牌 */}
+          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', minHeight: 56 }}>
+            {priv.turn === 2 ? (
+              <div style={{ padding: '4px 12px', background: timer <= 10 ? '#e94560' : '#333', borderRadius: 8, fontSize: 16, fontWeight: 'bold' }}>
+                ⏱ {timer}s
+              </div>
+            ) : (
+              lastPlays[2]?.map((l, i) => (
+                <img key={i} src={cardImg(l)} style={{ width: 36, height: 52, borderRadius: 3, marginLeft: i > 0 ? -8 : 0 }} />
+              ))
+            )}
           </div>
         </div>
       </div>
 
-      {/* 自己的出牌区（在手的上方） */}
-      <div style={{ textAlign: 'center', minHeight: 70, padding: '8px 0', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
-        {lastPlays[0]?.map((l, i) => (
-          <img key={i} src={cardImg(l)} style={{ width: 42, height: 60, borderRadius: 4, marginLeft: i > 0 ? -10 : 0 }} />
-        ))}
-        {!lastPlays[0] && priv.last_play_labels.length > 0 && (
-          priv.last_play_labels.map((l, i) => <img key={i} src={cardImg(l)} style={{ width: 42, height: 60, borderRadius: 4, marginLeft: i > 0 ? -10 : 0 }} />)
+      {/* 自己的出牌区：轮到则显示时钟，否则显示上一次出的牌 */}
+      <div style={{ textAlign: 'center', minHeight: 64, padding: '8px 0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        {priv.turn === 0 ? (
+          <div style={{ padding: '6px 20px', background: timer <= 10 ? '#e94560' : '#333', borderRadius: 12, fontSize: 22, fontWeight: 'bold' }}>
+            ⏱ {timer}s
+          </div>
+        ) : (
+          <>
+            {lastPlays[0]?.map((l, i) => (
+              <img key={i} src={cardImg(l)} style={{ width: 42, height: 60, borderRadius: 4, marginLeft: i > 0 ? -10 : 0 }} />
+            ))}
+            {!lastPlays[0] && priv.last_play_labels.length > 0 && (
+              priv.last_play_labels.map((l, i) => <img key={i} src={cardImg(l)} style={{ width: 42, height: 60, borderRadius: 4, marginLeft: i > 0 ? -10 : 0 }} />)
+            )}
+          </>
         )}
       </div>
 
