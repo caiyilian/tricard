@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-socketio[client]
+python-dotenv
+doudizhu
+openai
+numpy
+pytest
+pytest-asyncio
