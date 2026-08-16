@@ -39,7 +39,7 @@ tricard/
 │   │   ├── ranking.py       # 排行榜查询（三榜/缓存/AI过滤）
 │   │   ├── rooms.py         # 房间管理（房号/座位/AI补位）
 │   │   └── socketio_routes.py # SocketIO 事件处理
-│   ├── doudizhu/            # 业务逻辑（牌规则复用 doudizhu 库，其上再加游戏流程）
+│   ├── dzcore/             # 业务逻辑（牌规则复用 doudizhu 库，其上再加游戏流程）
 │   │   ├── game.py          # 对局状态机（叫地主/出牌轮转/胜负）★自研
 │   │   ├── ai_basic.py      # 规则 AI 兜底（~100 行贪心）★自研
 │   │   ├── ai_llm.py        # LLM 决策层（JSON/重试/回退）★自研
