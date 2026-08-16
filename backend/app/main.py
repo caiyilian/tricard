@@ -13,6 +13,7 @@ from app import config
 from app.auth import router as auth_router
 from app.db import init_db
 from app.ranking import router as ranking_router
+from app.socketio_routes import register_handlers
 from app.users import router as users_router
 
 
@@ -23,12 +24,21 @@ async def lifespan(app: FastAPI):
 
 
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
+register_handlers(sio)
 
 app = FastAPI(title="tricard", version="0.2.0", lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(ranking_router)
 app.mount("/avatars", StaticFiles(directory=config.AVATAR_DIR), name="avatars")
+
+
+@app.get("/api/rooms")
+async def rooms_list():
+    from app.socketio_routes import room_manager
+
+    return {"rooms": room_manager.list_rooms()}
+
 
 sio_app = socketio.ASGIApp(sio, other_asgi_app=app)
 
@@ -41,18 +51,3 @@ async def health() -> dict:
         "api_keys": len(config.SENSENOVA_API_KEYS),
         "model": config.SENSENOVA_MODEL,
     }
-
-
-@sio.event
-async def connect(sid, environ, auth):
-    return True
-
-
-@sio.event
-async def disconnect(sid):
-    return
-
-
-@sio.event
-async def ping(sid, data=None):
-    await sio.emit("pong", {"echo": data, "time": __import__("time").time()}, to=sid)

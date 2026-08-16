@@ -7,5 +7,6 @@ openai
 numpy
 sqlalchemy
 python-multipart
+aiohttp
 pytest
 pytest-asyncio

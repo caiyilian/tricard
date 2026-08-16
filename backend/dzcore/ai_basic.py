@@ -44,7 +44,7 @@ class BasicAI:
     def __init__(self, name: str = "规则AI"):
         self.name = name
 
-    def choose_action(self, hand: list[int], last_play: list[int]) -> list[int] | None:
+    def choose_action(self, hand: list[int], last_play: list[int], context: dict | None = None) -> list[int] | None:
         if last_play:
             combos = dz.list_beating(last_play, hand)
             if not combos:
