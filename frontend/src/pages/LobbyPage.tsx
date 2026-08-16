@@ -12,7 +12,10 @@ export default function LobbyPage({ onJoin, onCreate }: Props) {
   const [user, setUser] = useState<{ nickname: string; joy_beans: number; wins: number } | null>(null);
 
   useEffect(() => {
-    api.getMe().then(setUser).catch(() => {});
+    api.getMe().then(u => {
+      setUser(u);
+      localStorage.setItem('username', (u as any).username || '');
+    }).catch(() => {});
     const id = setInterval(() => api.listRooms().then(r => setRooms(r.rooms)).catch(() => {}), 3000);
     return () => clearInterval(id);
   }, []);

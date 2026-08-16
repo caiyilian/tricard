@@ -25,7 +25,7 @@ export const api = {
   login: (username: string, password: string) =>
     req<{ token: string; user: { id: number } }>('POST', '/api/auth/login', { username, password }),
 
-  getMe: () => req<{ nickname: string; joy_beans: number; wins: number; losses: number; games: number; win_rate: number | null; avatar: string | null }>('GET', '/api/users/me'),
+  getMe: () => req<{ username: string; nickname: string; joy_beans: number; wins: number; losses: number; games: number; win_rate: number | null; avatar: string | null }>('GET', '/api/users/me'),
 
   updateMe: (data: { nickname?: string }) => req<{ nickname: string }>('PUT', '/api/users/me', data),
 
