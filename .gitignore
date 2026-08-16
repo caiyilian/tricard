@@ -4,6 +4,10 @@ sensenova_apikey.txt
 *.env
 .env*
 
+# third-party cloned repos (do not upload)
+third_party/
+backend/models/
+
 # python
 __pycache__/
 *.py[cod]
