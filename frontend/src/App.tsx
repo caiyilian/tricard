@@ -71,7 +71,7 @@ export default function App() {
           <div style={{ color: '#eee', textAlign: 'center', padding: 40 }}>加入房间中...</div>
         )
       ) : (
-        <GamePage state={s.roomState!} comments={s.comments} onPlay={handlePlay} onPass={handlePass} onBid={handleBid} />
+        <GamePage state={s.roomState!} gameEnd={s.gameEnd} onPlay={handlePlay} onPass={handlePass} onBid={handleBid} onLeave={handleLeave} />
       )}
     </div>
   );

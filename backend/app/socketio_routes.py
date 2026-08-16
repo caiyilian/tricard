@@ -123,7 +123,7 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
         await _broadcast_room(sio, room)
 
     @sio.event
-    async def leave_room(sid):
+    async def leave_room(sid, data=None):
         meta = _ADDR_BY_SID.pop(sid, None)
         user = _USER_BY_SID.get(sid)
         if not meta:
@@ -252,10 +252,13 @@ async def _bidding_loop(sio, room: Room) -> None:
             seat = room.game.bidding_seat
             await _broadcast_room(sio, room)
             if room.seats[seat].is_ai:
-                # AI 简单策略：随机叫地主
-                import random
-                action = "landlord" if random.random() < 0.3 else "pass"
+                # AI 根据手牌质量决定是否抢地主：有≥2张大牌（A/2/王）则叫
+                hand = room.game.hands[seat]
+                from dzcore import dou_dz_adapter as dz
+                high = sum(1 for c in hand if dz.Card.rank_int_to_str(c) in ("A", "2", "BJ", "CJ"))
+                action = "landlord" if high >= 2 else "pass"
                 room.game.bid(seat, action)
+                await asyncio.sleep(0.5)
             else:
                 room.turn_event = asyncio.Event()
                 timeout_task = asyncio.create_task(_bid_timeout(sio, room, seat))

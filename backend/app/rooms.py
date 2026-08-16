@@ -147,7 +147,7 @@ class Room:
             "hand_labels": dz.cards_label(g.hands[seat_idx]) if g else [],
             "remaining": [g.hand_size(i) for i in range(3)] if g else [0, 0, 0],
             "landlord_seat": g.landlord_seat if g else None,
-            "bottom": dz.cards_label(g.bottom) if g else [],
+            "bottom": dz.cards_label(g.bottom) if g and g.status == "playing" else [],
             "can_act": bool(g and g.turn == seat_idx),
             "history": [{"seat": e["seat"], "action": e["action"], "labels": e["labels"], "trick": e["trick"]} for e in (g.history or [])],
         }
