@@ -36,6 +36,7 @@ tricard/
 │   │   ├── game.py          # 对局状态机（叫地主/出牌轮转/胜负）★自研
 │   │   ├── ai_basic.py      # 规则 AI 兜底（~100 行贪心）★自研
 │   │   ├── ai_llm.py        # LLM 决策层（JSON/重试/回退）★自研
+│   │   ├── ai_douzero.py    # DouZero 强 AI（离线价值网络）★封装
 │   │   └── key_picker.py    # 7 个 key 轮换调度 ★自研
 │   ├── scripts/             # 可运行的自动验证脚本
 │   ├── tests/               # pytest
@@ -45,6 +46,18 @@ tricard/
 ├── .gitignore
 └── DEVELOPMENT_PLAN.md
 ```
+
+### AI 难度设计（传统 AI 与 LLM 并存，两种定位不同）
+| 档位 | 实现 | 定位 | 手感 |
+|------|------|------|------|
+| `basic` | 规则 AI（贪心兜底） | 新手 | 稳定可预测，适合入门 |
+| `douzero` | DouZero 预训练价值网络（离线、零额度） | 职业选手 | 决策合理、整体强，严肃竞技 |
+| `llm` | 大模型 + 后端二次校验（非法则回退兜底） | 拟人玩家 | **会失误、会贪、偶尔乱出，很像真人**，自带节目效果 |
+
+设计原则：
+1. **LLM 的价值不在"赢"，而在"像人"**——它出差错正是趣味所在，不追求胜过 DouZero。
+2. 座位难度可独立配置：比如"1 真人 + 1 个 DouZero + 1 个 LLM"或 3 个真人，自由组合。
+3. DouZero 负责严肃游戏（零额度），LLM 负责拟人氛围，两端定位不同、不浪费额度。
 
 自动化测试统一用 **pytest**（单测 + SocketIO 多客户端集成测试），真实对局用 `scripts/` 脚本模拟，负责我的"自测验收"。
 
@@ -139,21 +152,25 @@ python backend/scripts/hand_test.py        # 真实调用 1 次
 
 ---
 
-## 阶段 4：集成 DouZero 强 AI（可选「高手」档）
+## 阶段 4：集成 DouZero 强 AI（「职业选手」档）
 **工作量：小（改配置，不写模型）**
 
 做：
 - `pip install douzero`，下载官方预训练权重到 `backend/models/`（不入 git，脚本负责拉取）
 - `ai_douzero.py` 封装：`pip` 后 import，CPU 推理；接入同一套 AI 接口（实现 `choose_action(state)`）
-- 座位配置支持「难度选择」：`basic`（规则 AI）/ `douzero` / `llm`
+- 座位配置支持「难度选择」，三档定位见上文「AI 难度设计」：
+  - `basic`（规则 AI · 新手）/ `douzero`（职业选手 · 零额度）/ `llm`（拟人玩家 · 允许失误）
+- 难度档与对局体验写入配置化 Seat，支持一桌自由混搭（如 真人 + douzero + llm）
 
 验收标准：
 - [ ] DouZero 能走通一局且出牌合法
-- [ ] 三档 AI 可切换
+- [ ] 三档 AI 可切换，混合座位配置生效
+- [ ] LLM 档失败自动回退，不影响整桌游戏
 
 我的测试：
 ```
 python backend/scripts/douzero_smoke.py     # 用预训练模型打一局
+python backend/scripts/auto_battle.py 100 --mix basic,douzero,llm   # 混搭 100 盘无异常（llm 可先置空=mock）
 ```
 
 ---
@@ -165,7 +182,7 @@ python backend/scripts/douzero_smoke.py     # 用预训练模型打一局
 - `rooms.py`：6 位房号、创建/加入/退出、座位抢占（真人入座自动顶替 AI）
 - SocketIO 事件：`join/create/deal/bid/play/pass/state/reconnect/leave`
 - 广播策略：整房状态按需全量下发 + 增量事件
-- 空位 AI 自动补位（难度默认 `basic`，可改 `llm`）
+- 空位 AI 自动补位（难度默认 `basic`，各座位可独立配置 `basic`/`douzero`/`llm`）
 - 断线保留座位 30s，重连后全量同步（SocketIO 自带 reconnect 事件做触发）
 - `scripts/ws_clients.py`：3 个模拟客户端加入同一房间完整打完一局
 
