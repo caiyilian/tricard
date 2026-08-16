@@ -37,6 +37,9 @@ export default function RoomPage({ state, onReady, onStart, onLeave }: Props) {
                   {s.is_ai && <span style={{ marginLeft: 8, fontSize: 12, color: '#aaa', background: '#0f3460', padding: '2px 6px', borderRadius: 4 }}>AI</span>}
                   {s.connected && <span style={{ marginLeft: 8, fontSize: 12, color: '#4ecca3' }}>●</span>}
                   {!s.connected && <span style={{ marginLeft: 8, fontSize: 12, color: '#666' }}>○</span>}
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                    胜率 {(s as any).win_rate != null ? `${((s as any).win_rate * 100).toFixed(1)}%` : '-'} · 欢乐豆 {(s as any).joy_beans ?? '?'}
+                  </div>
                 </>
               ) : <span style={{ color: '#555' }}>等待玩家...</span>}
             </div>

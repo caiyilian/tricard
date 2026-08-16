@@ -133,7 +133,9 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
         if room and room.status == "waiting":
             if user and room.seat_of(user["username"]) is not None:
                 room.seats = [None if s is not None and s.username == user["username"] else s for s in room.seats]
-                if not room.seats[room.host_seat].connected:
+                # 如果房主离开，解散房间
+                host = room.seats[room.host_seat]
+                if host is None or not host.connected:
                     room_manager.remove(code)
                 else:
                     room.fill_ai_seats()

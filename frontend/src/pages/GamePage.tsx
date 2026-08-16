@@ -57,15 +57,23 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
   const handleBid = (action: string) => onBid(action);
   const handleLeave = () => { setShowResult(false); onLeave(); };
 
-  // 每座本回合（当前轮次）最近一手出牌
+  // 每座本回合（当前轮次）最近一手出牌（过牌后不显示）
   const lastPlays: Record<number, string[]> = {};
+  const passedThisTrick: Set<number> = new Set();
   if (priv.history) {
     const currentTrick = priv.trick;
     for (const e of priv.history) {
-      if (e.trick === currentTrick && e.action === 'play' && e.labels?.length) {
+      if (e.trick !== currentTrick) continue;
+      if (e.action === 'pass') passedThisTrick.add(e.seat);
+      if (e.action === 'play' && e.labels?.length) {
         lastPlays[e.seat] = e.labels;
+        passedThisTrick.delete(e.seat);
       }
     }
+  }
+  // 如果本回合该玩家出过牌后又过了，清除其展示
+  for (const seat of passedThisTrick) {
+    delete lastPlays[seat];
   }
 
   const canBeatAny = priv.can_beat_any !== false;

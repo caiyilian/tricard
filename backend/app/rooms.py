@@ -28,6 +28,9 @@ class Seat:
     ready: bool = False             # AI 视为自动就绪
     connected: bool = False
     sid: str | None = None          # socketio session id（真人）
+    wins: int = 0
+    losses: int = 0
+    joy_beans: int = 100000
 
     def to_public(self) -> dict:
         return {
@@ -39,6 +42,10 @@ class Seat:
             "personality": self.personality if self.is_ai else None,
             "ready": self.ready,
             "connected": self.connected or self.is_ai,
+            "wins": self.wins,
+            "losses": self.losses,
+            "joy_beans": self.joy_beans,
+            "win_rate": round(self.wins / (self.wins + self.losses), 3) if (self.wins + self.losses) > 0 else None,
         }
 
 
@@ -69,13 +76,21 @@ class Room:
             return self.seats[s]
         for i in range(3):
             if self.seats[i] is None:
-                seat = Seat(user_id=user["id"], username=user["username"], nickname=user["nickname"], avatar=user.get("avatar"), connected=True)
+                seat = Seat(
+                    user_id=user["id"], username=user["username"], nickname=user["nickname"],
+                    avatar=user.get("avatar"), connected=True,
+                    wins=user.get("wins", 0), losses=user.get("losses", 0), joy_beans=user.get("joy_beans", 100000),
+                )
                 self.seats[i] = seat
                 return seat
         # 顶替第一个 AI
         for i in range(3):
             if self.seats[i].is_ai:
-                seat = Seat(user_id=user["id"], username=user["username"], nickname=user["nickname"], avatar=user.get("avatar"), connected=True)
+                seat = Seat(
+                    user_id=user["id"], username=user["username"], nickname=user["nickname"],
+                    avatar=user.get("avatar"), connected=True,
+                    wins=user.get("wins", 0), losses=user.get("losses", 0), joy_beans=user.get("joy_beans", 100000),
+                )
                 self.seats[i] = seat
                 return seat
         return None
@@ -208,8 +223,11 @@ class RoomManager:
 
     def create(self, host_user: dict, base_bet: int = 200, ai_type: str = "basic", personality: str = "savage") -> Room:
         code = self._gen_code()
-        host = Seat(user_id=host_user["id"], username=host_user["username"], nickname=host_user["nickname"],
-                    avatar=host_user.get("avatar"), connected=True, ready=True)  # 房主自动就绪
+        host = Seat(
+            user_id=host_user["id"], username=host_user["username"], nickname=host_user["nickname"],
+            avatar=host_user.get("avatar"), connected=True, ready=True,
+            wins=host_user.get("wins", 0), losses=host_user.get("losses", 0), joy_beans=host_user.get("joy_beans", 100000),
+        )
         room = Room(code=code, host_seat=0, base_bet=base_bet, seats=[host, None, None])
         room.default_ai_type = _norm_ai_type(ai_type)
         room.fill_ai_seats(room.default_ai_type)
