@@ -67,12 +67,39 @@ tricard/
 
 ### AI 评论系统设计（嘲讽 / 夸奖 / 弹幕人格）
 
+**评价时每次出牌 AI 的解耦 —— 先回答你上面的问题：**
+> 评论能力**不属于出牌 AI**，桌上有一个**独立的 LLM 观察者（Commentator，每桌一个）**负责"判断 + 措辞 + 指定发言人"。
+> 所以的 AI 座位（不管是 LLM 还是 DouZero / 规则 AI）都**可以开口**，由 Commentator 指定谁来嘲讽/夸奖。
+> 每回合都会快速判断一次是否值得说话（省 token 的预筛 + LLM 判断，见下），单桌混排和任意 AI 类型组合均支持。
+
 **核心理念**
-- **有因果、不是随机刷屏**：只在规则层识别出**确定的"坑/亮点"局面**后才触发；措辞可选 LLM 生成保证多样性。
-- **团队关系感知**：AI 清楚自己与目标的关系（队友 / 对手），口吻不同——是队友就"损"（"你是不是在演我？"），是对手就嘲讽。
+- **有因果、不是随机刷屏**：先由**规则检测器**预筛出"确定的坑/亮点"事件，再由 Commentator 判断值不值得说、谁来说、怎么说；不靠随机。
+- **团队关系感知**：Commentator 知道每个 AI 座位与目标的关系（队友 / 对手），口吻不同——是队友就"损"（"你是不是在演我？"），是对手就嘲讽。
+- **评论与出牌解耦**：`commentator` 是独立 LLM 调用流，**不耗出牌 LLM 的调用次数**；DouZero/规则 AI 座位照常被分配台词。
 - **连续坑 = 连续被嘲**：靠**羞耻值累计**与**冷却**控制频率，一次失误不会立刻挨怼，越坑台词越密。
 
+**架构**
+```
+commentary/
+├── detector.py       # 规则预筛：消费事件流，输出 (archetype, 目标座位, 显著度)（零额度）
+├── salience.py       # 显著度评估 + 频控（冷却/羞耻累计/每局上限）
+├── commentator.py    # 每桌一个：编排 预筛 → LLM 判断 → 措辞 → 广播
+├── llm_commentator.py # Commentator LLM：判断是否值得说 + 指定 speaker + 生成措辞
+└── phrase_bank.py     # 回退措辞库（零额度，任何一步失败兜底）
+```
+Commentator 每回合输入（精简局面快照）：本回合谁出了什么/过了、各方剩牌变化、最近 2~3 手、各 AI 座位人格、与目标的关系；输出 JSON：
+```
+{"should_comment": true, "speaker": "农民-1", "tone": "savage", "text": "……"}
+```
+
 **触发源 = 游戏事件流**：`play / pass / bomb / round_end / game_end`。即时检测 move 级事件；每轮结束做一次"整轮复盘"。评论只在**天然停顿处**输出（回合结算/整轮结束/胜负点），不打断交互。
+
+**判断模式（config：`commentator.mode`）**
+| 模式 | 触发节流 | 额度 | 说明 |
+|------|------|------|------|
+| `rules_only`（默认） | 规则预筛显著度达标才触发，措辞走短语库 | 0 | 最省，AI 完全不说话之外的兜底 |
+| `hybrid` | 规则预筛达标 → LLM 判断+措辞，miss 则短语库 | 低 | 有节制的 LLM 节目效果 |
+| `llm_judge` | **每回合都问 Commentator**（低 token 快速判断） | 高 | 最拟人、最灵动，测试/展示用 |
 
 **检测器清单（确定性规则）** —— 非随机，构造具体局面即断言触发：
 | ID | 名称 | 示例规则（命中即产生"显著度"） |
@@ -92,13 +119,12 @@ tricard/
 - 每座位冷却 N 回合；全局每轮最多 M 条；每局每座位最多 K 条（N/M/K 做成配置）。
 - 评价对象包括真人玩家 —— 你说得对：真人跟 AI 一队坑了它，它也会损你。
 
-**措辞生成（双通道）**
-1. **默认** `phrase_bank`（零额度）：按 archetype + 力度从模板随机选句填座位名。
-2. **可选 LLM 措辞**：仅高显著度触发时调用一次；prompt 含 archetype、与目标关系、该轮牌序、目标剩牌变化、AI 人格；强制 `json_object` 输出 1~2 句话。
-3. LLM 失败/超时 → 回退 `phrase_bank`，**永不阻塞牌局**。
-4. 额度控制：每局 LLM 措辞默认 ≤2 条，其余走短语库（决策调用优先保证额度）。
+**措辞生成（Commentator 集成，双通道）**
+1. `hybrid`/`llm_judge` 模式：Commentator 判断"值得说"后，直接生成措辞并指定 `speaker`（任意 AI 座位，含 DouZero/规则 AI）；prompt 含 archetype、speaker 与目标关系、该轮牌序、目标剩牌变化、speaker 人格；强制 `json_object` 输出 1~2 句话。
+2. LLM 失败/超时 → 回退 `phrase_bank`（按 archetype+力度+speaker 人格填名），**永不阻塞牌局**。
+3. 额度控制：`hybrid` 下每局 Commentator 调用默认 ≤2 条判断；`rules_only` 零额度；出牌 LLM 的调用与评论互不占用。
 
-**人格开关（每座位可配）**：`off`（不评论）/ `kind`（温和多夸）/ `savage`（毒舌多嘲）/ `chatterbox`（话多）。前端以聊天气泡 + 弹幕形式展示。
+**人格开关（每座位可配，作用于被指派的台词口感）**：`off`（该座位不评论）/ `kind`（温和多夸）/ `savage`（毒舌多嘲）/ `chatterbox`（话多）。前端以聊天气泡 + 弹幕形式展示。
 
 **与聊天共存**：真人聊天走 `chat` 事件；AI 评论走 `comment` 事件，前端不同样式，不冲突。
 
@@ -234,13 +260,16 @@ python backend/scripts/hand_test.py        # 真实调用 1 次
 
 验收标准：
 - [ ] DouZero 能走通一局且出牌合法
-- [ ] 三档 AI 可切换，混合座位配置生效
+- [ ] `--mix` 支持任意 AI 组合：`llm,llm,llm` / `llm,llm,douzero` / `llm,douzero,douzero` / `douzero,douzero,douzero` / 任意含 `basic`，全部能稳定打完一局
 - [ ] LLM 档失败自动回退，不影响整桌游戏
 
 我的测试：
 ```
 python backend/scripts/douzero_smoke.py     # 用预训练模型打一局
-python backend/scripts/auto_battle.py 100 --mix basic,douzero,llm   # 混搭 100 盘无异常（llm 可先置空=mock）
+python backend/scripts/auto_battle.py 20 --mix llm,llm,llm            # 3 LLM
+python backend/scripts/auto_battle.py 20 --mix llm,llm,douzero        # 2 LLM + 1 RL
+python backend/scripts/auto_battle.py 20 --mix llm,douzero,douzero    # 1 LLM + 2 RL
+python backend/scripts/auto_battle.py 100 --mix basic,douzero,llm     # 混搭无异常（llm 可置空=mock）
 ```
 
 ---
@@ -249,26 +278,29 @@ python backend/scripts/auto_battle.py 100 --mix basic,douzero,llm   # 混搭 100
 **工作量：小~中（纯后端 + 事件流，前端显示随阶段 6 一起做）**
 
 做：
-- 按上文「AI 评论系统设计」实现 `doudizhu/commentary/` 五件套：
+- 按上文「AI 评论系统设计」实现 `doudizhu/commentary/`：
   - `detector.py`：实现检测器清单（踩队友/帮倒忙/不送牌/误伤/送葬/神炸/送跑/绝地）
   - `salience.py`：显著度 = 强度 × 羞耻累计，达标才触发；冷却/每轮上限/每局上限（N/M/K 可配）
   - `phrase_bank.py`：按 archetype 分档短语库（零额度）
-  - `llm_comment.py`：高频场景用 LLM 措辞（json_object），失败回退短语库，每局默认 ≤2 条
-  - `commentator.py`：订阅 `game` 事件流 → 检测 → 频控 → 广播
+  - `llm_commentator.py`：每桌一个的评论 LLM——判断是否值得说、指定 `speaker`、生成措辞（json_object），失败回退短语库，`commentator.mode` 三种模式（rules_only/hybrid/llm_judge）
+  - `commentator.py`：订阅 `game` 事件流 → 预筛 → 频控 →（LLM 判断选 modes）→ 广播
 - `game.py` 增加事件钩子（play/pass/bomb/round_end/game_end），评论只在天然停顿处输出
+- **评论与出牌解耦**：speaker 可为任意 AI 座位（LLM / DouZero / 规则 AI），同一桌混排生效
 - 座位人格配置：`off / kind / savage / chatterbox`
 - 评价对象包含真人玩家（真人队友坑了 AI，AI 会当面损）
 
 验收标准：
 - [ ] 构造"踩队友/送葬/不送牌/神炸"等具体局面，单测断言对应 archetype 触发（确定性，不靠随机）
 - [ ] mock 评论事件流 100 盘，全局条数不超过上限（不刷屏）
-- [ ] LLM 措辞在 mock 失败时回退短语库，牌局不中断
+- [ ] Commentator 指定 `speaker` 为任意 AI 类型座位（含 douzero/规则 AI）均能生效；非 LLM 座位也会被分配台词
+- [ ] 三种 mode（rules_only/hybrid/llm_judge）切换正常；LLM 失败时回退短语库，牌局不中断
 - [ ] `comment` 事件经 SocketIO 广播格式正确
 
 我的测试：
 ```
 pytest backend/tests/test_commentary.py -v
-python backend/scripts/comment_sim.py 100     # mocker 走事件流，统计条数/触发分布
+python backend/scripts/comment_sim.py 100 --mix llm,douzero,basic     # mocker 走事件流，看 douzero/basic 座位也被分台词
+python backend/scripts/comment_sim.py 100 --mode llm_judge --mix llm,llm,llm   # 3 LLM + 每回合快速判断（验证抖动/额度）
 ```
 
 ---
