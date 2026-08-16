@@ -34,6 +34,7 @@ tricard/
 │   │   ├── models.py        # User / MatchRecord（欢乐豆、战绩落库）
 │   │   ├── security.py      # pbkdf2 密码哈希 + token
 │   │   ├── auth.py          # 注册/登录路由
+│   │   ├── users.py         # 资料查询/改昵称/头像上传
 │   │   ├── beans.py         # 欢乐豆结算（纯函数，好单测）
 │   │   ├── rooms.py         # 房间管理（房号/座位/AI补位）
 │   │   └── socketio_routes.py # SocketIO 事件处理
@@ -215,10 +216,13 @@ python backend/scripts/auto_battle.py 100
 
 **存储**：本机 SQLite（`backend/data/doudizhu.db`，已 gitignore），用 **SQLAlchemy 2.x ORM**（开箱即用、配 FastAPI 顺手）。局域网单服务器并发低，SQLite 完全够。
 
-**账号**
-- `User`：`id / username（唯一）/ password_hash（pbkdf2+盐，不存明文）/ nickname / is_ai / joy_beans / 战绩字段`
-- HTTP 账号接口：注册、登录（返回 token，后续 SocketIO connect 携带做信令鉴权）、改昵称
-- **AI 账号预设**：`scripts/seed_ai.py` 启动时（或单独命令）创建 N 个 AI 账号（有名字、有初始欢乐豆，如每人 10 万），供真人开房选用；输光豆子的 AI 由脚本一键回补
+**账号（含头像 / 昵称 / 战绩）**
+- `User`：`id / username（唯一，登录用）/ password_hash（pbkdf2+盐，不存明文）/ nickname（昵称，可改/唯一）/ avatar（头像路径）/ is_ai / joy_beans / wins / losses / games / win_rate`
+- **胜负场与胜率**：`MatchRecord` 落每一局（谁地主、谁赢、炸弹数、春天、豆变动），`User` 聚合 `wins/losses/games`，`win_rate = wins / games`（games>0 才显示，AI 账号同样累计）；房间内与结算面板均展示
+- **头像上传**：HTTP `POST /api/users/avatar`（multipart），存 `backend/data/avatars/<user_id>.png`（gitignore），DB 记路径，前端 `<img>` 展示；默认头像占位图（可配 AI 账号预置一组头像）
+- **昵称头像**：`PUT /api/users/me` 改昵称/头像，`GET /api/users/me` 查自己资料（含余额/胜率）
+- HTTP 账号接口：注册、登录（返回 token，后续 SocketIO connect 携带做信令鉴权）
+- **AI 账号预设**：`scripts/seed_ai.py` 启动时（或单独命令）创建 N 个 AI 账号（有名字、有初始欢乐豆如每人 10 万，可配预置头像），供真人开房选用；输光豆子的 AI 由脚本一键回补
 
 **欢乐豆（结算规则与服务端权威）**
 ```
@@ -232,26 +236,30 @@ python backend/scripts/auto_battle.py 100
     地主负：-2 × base_bet × multiplier（两农民各得 base_bet × multiplier）
 ```
 - 结算在 `game_over` 由**服务端权威**计算并写 DB、广播结算面板（含每项翻倍明细），前端只展示
+- **胜负记录同样随 `game_over` 更新**：赢的玩家 `wins+1`、输的 `losses+1`（AI 账号一样记）
 - **房门票**：欢乐豆 < `base_bet` 的账号不能入房（市面同款"快乐豆不足"拦截）
 - 输光/不足由前端提示充不上（局域网可让房主一键给 AI/所有人回补额度，或个人单机随便造场景）
 
 ### 做
 - `requirements.txt` 加 `sqlalchemy`
-- `app/db.py`（engine + session）、`app/models.py`（User / MatchRecord）、`app/security.py`（pbkdf2 哈希 + token）、`app/auth.py`（注册/登录路由）
-- `app/beans.py`：纯函数结算（输入：底分、角色、炸弹数、春天 → 输出各账号豆变动），好单测
+- `app/db.py`（engine + session）、`app/models.py`（User / MatchRecord）、`app/security.py`（pbkdf2 哈希 + token）、`app/auth.py`（注册/登录）、`app/users.py`（资料查询/改昵称/改头像/上传）
+- `app/beans.py`：纯函数结算（输入：底分、角色、炸弹数、春天 → 输出各账号豆变动 + 胜负归属），好单测
 - `scripts/seed_ai.py`：建账号表、插入 AI 账号、回补豆子
-- 阶段 5 起的 SocketIO 房间：`User` 绑定座位，`game_over` 后调用 `beans.py` 结算入库 + 广播
+- 阶段 5 起的 SocketIO 房间：`User` 绑定座位，`game_over` 后调用 `beans.py` 结算入库（含胜负数更新）+ 广播
+- 阶段 6 前端：头像/昵称/胜率在大厅座位、结算面板展示
 
 验收标准：
 - [ ] 注册/登录/鉴权可用；密码只存哈希；重复用户名被拒
-- [ ] `beans.py` 单测：无炸弹/1 炸/2 炸/王炸/春天各场景豆子结余正确（含 DB 落库验证）
+- [ ] 改昵称（唯一性校验）、上传头像（落盘 + 路径入库）、`GET /api/users/me` 返回完整资料
+- [ ] `beans.py` 单测：无炸弹/1 炸/2 炸/王炸/春天各场景豆子结余正确（含 DB 落库验证），胜负数与胜率随之正确
 - [ ] `seed_ai.py` 生成 N 个 AI 账号且各自有豆；重复运行幂等
 - [ ] 豆子 < 房门票 时拒绝入房
 
 我的测试：
 ```
 pytest backend/tests/test_auth.py -v          # 注册/登录/token
-pytest backend/tests/test_beans.py -v         # 结算公式
+pytest backend/tests/test_users.py -v         # 资料/改昵称/头像上传
+pytest backend/tests/test_beans.py -v         # 结算公式 + 胜负/胜率
 python backend/scripts/seed_ai.py --ensure     # 建表 + 建 AI 账号（幂等）
 ```
 
