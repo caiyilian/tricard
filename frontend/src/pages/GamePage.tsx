@@ -57,24 +57,21 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
   const handleBid = (action: string) => onBid(action);
   const handleLeave = () => { setShowResult(false); onLeave(); };
 
-  // 每座本回合（当前轮次）最近一手出牌（过牌后不显示）
-  const lastPlays: Record<number, string[]> = {};
-  const passedThisTrick: Set<number> = new Set();
+  // 每座本回合最后动作：play→显示牌，pass→空白
+  const lastAction: Record<number, { type: string; labels: string[] }> = {};
   if (priv.history) {
-    const currentTrick = priv.trick;
+    const ct = priv.trick;
     for (const e of priv.history) {
-      if (e.trick !== currentTrick) continue;
-      if (e.action === 'pass') passedThisTrick.add(e.seat);
-      if (e.action === 'play' && e.labels?.length) {
-        lastPlays[e.seat] = e.labels;
-        passedThisTrick.delete(e.seat);
+      if (e.trick !== ct) continue;
+      if (e.action === 'play') {
+        lastAction[e.seat] = { type: 'play', labels: e.labels || [] };
+      } else if (e.action === 'pass') {
+        lastAction[e.seat] = { type: 'pass', labels: [] };
       }
     }
   }
-  // 如果本回合该玩家出过牌后又过了，清除其展示
-  for (const seat of passedThisTrick) {
-    delete lastPlays[seat];
-  }
+  const lastLabel = (seat: number): string[] | undefined =>
+    lastAction[seat]?.type === 'play' ? lastAction[seat].labels : undefined;
 
   const canBeatAny = priv.can_beat_any !== false;
 
@@ -155,7 +152,7 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
                 ⏱ {timer}s
               </div>
             ) : (
-              lastPlays[1]?.map((l, i) => (
+              lastLabel(1)?.map((l, i) => (
                 <img key={i} src={cardImg(l)} style={{ width: 36, height: 52, borderRadius: 3, marginLeft: i > 0 ? -8 : 0 }} />
               ))
             )}
@@ -189,7 +186,7 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
                 ⏱ {timer}s
               </div>
             ) : (
-              lastPlays[2]?.map((l, i) => (
+              lastLabel(2)?.map((l, i) => (
                 <img key={i} src={cardImg(l)} style={{ width: 36, height: 52, borderRadius: 3, marginLeft: i > 0 ? -8 : 0 }} />
               ))
             )}
@@ -205,10 +202,10 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
           </div>
         ) : (
           <>
-            {lastPlays[0]?.map((l, i) => (
+            {lastLabel(0)?.map((l, i) => (
               <img key={i} src={cardImg(l)} style={{ width: 42, height: 60, borderRadius: 4, marginLeft: i > 0 ? -10 : 0 }} />
             ))}
-            {!lastPlays[0] && priv.last_play_labels.length > 0 && (
+            {!lastLabel(0) && priv.last_play_labels.length > 0 && (
               priv.last_play_labels.map((l, i) => <img key={i} src={cardImg(l)} style={{ width: 42, height: 60, borderRadius: 4, marginLeft: i > 0 ? -10 : 0 }} />)
             )}
           </>
