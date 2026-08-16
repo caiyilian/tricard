@@ -1,0 +1,23 @@
+# secrets - do not upload
+github-token.txt
+sensenova_apikey.txt
+*.env
+.env*
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.log
+
+# node
+node_modules/
+dist/
+*.local
+
+# ide / os
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
