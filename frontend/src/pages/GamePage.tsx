@@ -28,7 +28,7 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
   const [showResult, setShowResult] = useState(false);
 
   useEffect(() => {
-    if (priv.can_act && priv.status === 'playing') {
+    if (priv.status === 'playing' && priv.turn !== null) {
       setTimer(30);
       timerRef.current = setInterval(() => {
         setTimer(t => { if (t <= 1) { clearInterval(timerRef.current!); return 0; } return t - 1; });
@@ -38,7 +38,7 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
       setTimer(30);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [priv.can_act, priv.turn, priv.status]);
+  }, [priv.turn, priv.status]);
 
   useEffect(() => { if (gameEnd) setShowResult(true); }, [gameEnd]);
 
