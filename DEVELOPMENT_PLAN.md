@@ -246,6 +246,7 @@ python backend/scripts/auto_battle.py 100
 - `app/beans.py`：纯函数结算（输入：底分、角色、炸弹数、春天 → 输出各账号豆变动 + 胜负归属），好单测
 - `scripts/seed_ai.py`：建账号表、插入 AI 账号、回补豆子
 - 阶段 5 起的 SocketIO 房间：`User` 绑定座位，`game_over` 后调用 `beans.py` 结算入库（含胜负数更新）+ 广播
+- 阶段 6 前端：**欢乐豆余额**在全局导航栏、大厅座位、房间座位、结算面板常显（实时随 `state`/`settle` 事件刷新）
 - 阶段 6 前端：头像/昵称/胜率在大厅座位、结算面板展示
 
 验收标准：
