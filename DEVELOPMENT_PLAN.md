@@ -30,6 +30,11 @@ tricard/
 │   ├── app/
 │   │   ├── main.py          # FastAPI 入口（HTTP 静态 + SocketIO 路由）
 │   │   ├── config.py        # 从 .env 读配置
+│   │   ├── db.py            # SQLAlchemy engine + session
+│   │   ├── models.py        # User / MatchRecord（欢乐豆、战绩落库）
+│   │   ├── security.py      # pbkdf2 密码哈希 + token
+│   │   ├── auth.py          # 注册/登录路由
+│   │   ├── beans.py         # 欢乐豆结算（纯函数，好单测）
 │   │   ├── rooms.py         # 房间管理（房号/座位/AI补位）
 │   │   └── socketio_routes.py # SocketIO 事件处理
 │   ├── doudizhu/            # 业务逻辑（牌规则复用 doudizhu 库，其上再加游戏流程）
@@ -41,10 +46,11 @@ tricard/
 │   │   │   ├── detector.py      # 局面探测器（确定性规则，非随机）
 │   │   │   ├── salience.py      # 显著度评估 + 频控（羞耻值累计）
 │   │   │   ├── phrase_bank.py   # 零额度短语库
-│   │   │   ├── llm_comment.py   # LLM 措辞生成（json_object，失败回退短语库）
+│   │   │   ├── llm_commentator.py # 独立评论 LLM（判断+指定 speaker+措辞）
 │   │   │   └── commentator.py   # 编排 + 广播
 │   │   └── key_picker.py    # 7 个 key 轮换调度 ★自研
 │   ├── scripts/             # 可运行的自动验证脚本
+│   │   └── seed_ai.py       # 建表 + 建 AI 账号 + 回补豆子
 │   ├── tests/               # pytest
 │   └── requirements.txt
 ├── frontend/           # 阶段 6 起创建（Vue3 + Vite）
@@ -193,6 +199,55 @@ python backend/scripts/simulate_game.py   # 应打印完整对局并正常结束
 ```
 pytest backend/tests/test_ai_basic.py -v
 python backend/scripts/auto_battle.py 100
+```
+
+---
+
+## 阶段 2.5：账号系统 + 欢乐豆（本地服务器数据库）
+**工作量：中（DB + 鉴权 + 结算公式）**
+
+### 设计
+
+**存储**：本机 SQLite（`backend/data/doudizhu.db`，已 gitignore），用 **SQLAlchemy 2.x ORM**（开箱即用、配 FastAPI 顺手）。局域网单服务器并发低，SQLite 完全够。
+
+**账号**
+- `User`：`id / username（唯一）/ password_hash（pbkdf2+盐，不存明文）/ nickname / is_ai / joy_beans / 战绩字段`
+- HTTP 账号接口：注册、登录（返回 token，后续 SocketIO connect 携带做信令鉴权）、改昵称
+- **AI 账号预设**：`scripts/seed_ai.py` 启动时（或单独命令）创建 N 个 AI 账号（有名字、有初始欢乐豆，如每人 10 万），供真人开房选用；输光豆子的 AI 由脚本一键回补
+
+**欢乐豆（结算规则与服务端权威）**
+```
+底分 base_bet：开房时可选（如 200 / 1000 / 5000 场）
+倍数 multiplier = 1
+    × 叫分系数（叫1/2/3，简化版先固定 1×）
+    × 2^炸弹数（含王炸，每炸翻一倍）          ← 用户点名要的"炸弹翻倍"
+    × 2（春天：地主一手出完 / 农民完胜地主未出过牌）
+结算：
+    地主胜：+2 × base_bet × multiplier（两农民各扣 base_bet × multiplier）
+    地主负：-2 × base_bet × multiplier（两农民各得 base_bet × multiplier）
+```
+- 结算在 `game_over` 由**服务端权威**计算并写 DB、广播结算面板（含每项翻倍明细），前端只展示
+- **房门票**：欢乐豆 < `base_bet` 的账号不能入房（市面同款"快乐豆不足"拦截）
+- 输光/不足由前端提示充不上（局域网可让房主一键给 AI/所有人回补额度，或个人单机随便造场景）
+
+### 做
+- `requirements.txt` 加 `sqlalchemy`
+- `app/db.py`（engine + session）、`app/models.py`（User / MatchRecord）、`app/security.py`（pbkdf2 哈希 + token）、`app/auth.py`（注册/登录路由）
+- `app/beans.py`：纯函数结算（输入：底分、角色、炸弹数、春天 → 输出各账号豆变动），好单测
+- `scripts/seed_ai.py`：建账号表、插入 AI 账号、回补豆子
+- 阶段 5 起的 SocketIO 房间：`User` 绑定座位，`game_over` 后调用 `beans.py` 结算入库 + 广播
+
+验收标准：
+- [ ] 注册/登录/鉴权可用；密码只存哈希；重复用户名被拒
+- [ ] `beans.py` 单测：无炸弹/1 炸/2 炸/王炸/春天各场景豆子结余正确（含 DB 落库验证）
+- [ ] `seed_ai.py` 生成 N 个 AI 账号且各自有豆；重复运行幂等
+- [ ] 豆子 < 房门票 时拒绝入房
+
+我的测试：
+```
+pytest backend/tests/test_auth.py -v          # 注册/登录/token
+pytest backend/tests/test_beans.py -v         # 结算公式
+python backend/scripts/seed_ai.py --ensure     # 建表 + 建 AI 账号（幂等）
 ```
 
 ---
@@ -378,6 +433,7 @@ run.bat   # 启动后按提示访问局域网 IP:8000 手测
 | 0 | `curl /health` + socketio 握手 | 200 + 握手成功 |
 | 1 | `pytest test_game.py` + simulate | 全过 + 整局完成 |
 | 2 | `pytest test_ai_basic.py` + auto_battle | 全过 + 100 盘无异常 |
+| 2.5 | `pytest test_auth.py` + test_beans.py + seed_ai | 全过 + 建库建 AI 账号幂等 |
 | 3 | `pytest test_ai_llm.py` + hand_test | 全过 + 真实调用合法 |
 | 4 | `douzero_smoke.py` | 高手 AI 合法打一局 |
 | 4.5 | `pytest test_commentary.py` + comment_sim | 全过 + 触发确凿、不刷屏 |
@@ -390,6 +446,7 @@ run.bat   # 启动后按提示访问局域网 IP:8000 手测
 - [ ] 阶段 0：脚手架与健康检查
 - [ ] 阶段 1：复用牌型引擎 + 游戏状态机
 - [ ] 阶段 2：规则 AI 兜底
+- [ ] 阶段 2.5：账号系统 + 欢乐豆（SQLite）
 - [ ] 阶段 3：LLM 决策层
 - [ ] 阶段 4：DouZero 强 AI
 - [ ] 阶段 4.5：AI 评论系统

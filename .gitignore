@@ -19,6 +19,8 @@ __pycache__/
 .venv/
 venv/
 *.log
+*.db
+backend/data/
 
 # node
 node_modules/
