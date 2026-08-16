@@ -4,9 +4,11 @@
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import socketio
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import config
@@ -32,11 +34,6 @@ app.include_router(users_router)
 app.include_router(ranking_router)
 app.mount("/avatars", StaticFiles(directory=config.AVATAR_DIR), name="avatars")
 
-# 前端静态文件（生产构建）
-_frontend = config.BACKEND_DIR.parent / "frontend" / "dist"
-if _frontend.exists():
-    app.mount("/", StaticFiles(directory=str(_frontend), html=True), name="frontend")
-
 
 @app.get("/health")
 async def health() -> dict:
@@ -53,6 +50,18 @@ async def rooms_list():
     from app.socketio_routes import room_manager
 
     return {"rooms": room_manager.list_rooms()}
+
+
+# 前端静态文件（生产构建，必须最后注册，以免抢 API 路由）
+_frontend = config.BACKEND_DIR.parent / "frontend" / "dist"
+if _frontend.exists():
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        file = _frontend / full_path
+        if file.exists() and file.is_file():
+            return FileResponse(str(file))
+        return FileResponse(str(_frontend / "index.html"))
 
 
 sio_app = socketio.ASGIApp(sio, other_asgi_app=app)
