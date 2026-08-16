@@ -103,6 +103,16 @@ async def client(i: int, token: str, ai: BasicAI, box: dict):
             break
         if not room.get("status"):
             continue
+        # 抢地主阶段
+        if priv.get("status") == "bidding" and priv.get("can_bid"):
+            import random
+            action = "landlord" if random.random() < 0.3 else "pass"
+            await sio.emit("bid", {"action": action})
+            print(f"[p{i}] 叫地主: {action}")
+            state["priv"] = {}
+            await sio.sleep(0.2)
+            continue
+        # 出牌阶段
         if priv.get("can_act") and room.get("status") == "playing":
             hand = list(priv.get("hand", []))
             last = list(priv.get("last_play", []))

@@ -137,7 +137,7 @@ class TestLLMBattle:
             return BasicAI(name="mock-llm")
         players = [fixed_ai(), fixed_ai(), fixed_ai()]
         game = Game()
-        game.start(seed=9)
+        game.start_quick(seed=9)
         turns = 0
         while game.status == Game.STATUS_PLAYING:
             turns += 1

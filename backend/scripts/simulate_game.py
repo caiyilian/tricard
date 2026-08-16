@@ -29,7 +29,7 @@ def choose_move(game: Game, seat: int) -> list[int] | None:
 
 def simulate(seed: int | None, max_turns: int = 1000) -> Game:
     game = Game()
-    game.start(seed=seed)
+    game.start_quick(seed=seed)
     print(f"=== 新一局 seed={seed} 地主={game.landlord_seat} 底牌={dz.cards_label(game.bottom)} ===")
     for seat in range(3):
         print(f"{label(seat, game)} 手牌: {dz.cards_label(game.hands[seat])}")

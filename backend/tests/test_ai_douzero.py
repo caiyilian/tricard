@@ -23,7 +23,7 @@ class TestSeatMapping:
 class TestDouZeroAct:
     def test_lead_legal(self, dz_ai):
         game = Game()
-        game.start(seed=11)
+        game.start_quick(seed=11)
         ctx = {"game": game}
         move = dz_ai.choose_action(game.hands[game.turn], game.last_play, ctx)
         assert move is None or dz.is_valid_play(move)
@@ -34,7 +34,7 @@ class TestDouZeroAct:
         """三座位全是 DouZero：完整打一局，所有出牌合法。"""
         players = [DouZeroAI(name="d0"), DouZeroAI(name="d1"), DouZeroAI(name="d2")]
         game = Game()
-        game.start(seed=5)
+        game.start_quick(seed=5)
         turns = 0
         while game.status == Game.STATUS_PLAYING:
             turns += 1

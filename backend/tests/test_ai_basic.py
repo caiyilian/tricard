@@ -13,7 +13,7 @@ def ai():
 class TestBasicAI:
     def test_lead_never_none(self, ai):
         game = Game()
-        game.start(seed=3)
+        game.start_quick(seed=3)
         for seat in range(3):
             move = ai.choose_action(game.hands[seat], [])
             assert move is not None
@@ -40,7 +40,7 @@ class TestBasicAI:
         finished = 0
         for seed in range(1, games + 1):
             game = Game()
-            game.start(seed=seed)
+            game.start_quick(seed=seed)
             turns = 0
             while game.status == Game.STATUS_PLAYING:
                 turns += 1

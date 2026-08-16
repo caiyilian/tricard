@@ -133,7 +133,10 @@ class Room:
 
     def private_snapshot(self, seat_idx: int) -> dict:
         g = self.game
-        return {
+        if g is None:
+            return {"status": "waiting"}
+        b = {
+            "status": g.status,
             "turn": g.turn if g else None,
             "last_play": [c for c in g.last_play] if g and g.last_play else [],
             "last_play_labels": dz.cards_label(g.last_play) if g and g.last_play else [],
@@ -146,7 +149,19 @@ class Room:
             "landlord_seat": g.landlord_seat if g else None,
             "bottom": dz.cards_label(g.bottom) if g else [],
             "can_act": bool(g and g.turn == seat_idx),
+            "history": [{"seat": e["seat"], "action": e["action"], "labels": e["labels"], "trick": e["trick"]} for e in (g.history or [])],
         }
+        # 抢地主阶段
+        if g.status == "bidding":
+            b["bidding_seat"] = g.bidding_seat
+            b["bidders"] = g.bidders
+            b["can_bid"] = g.bidding_seat == seat_idx
+        # 是否能压住上家
+        if g.last_play and g.turn == seat_idx:
+            b["can_beat_any"] = len(dz.list_beating(g.last_play, g.hands[seat_idx])) > 0
+        else:
+            b["can_beat_any"] = True
+        return b
 
     # ---- 结算 ----
     def settle(self) -> dict:

@@ -57,7 +57,7 @@ def build_players(mix: list[str]) -> list:
 
 def play_one(players: list, seed: int) -> dict:
     game = Game()
-    game.start(seed=seed)
+    game.start_quick(seed=seed)
     _current_game["game"] = game
     turns = 0
     while game.status == Game.STATUS_PLAYING:

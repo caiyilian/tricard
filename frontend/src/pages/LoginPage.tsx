@@ -19,6 +19,7 @@ export default function LoginPage({ onLogin }: Props) {
         ? await api.login(username, password)
         : await api.register(username, password, nickname || username);
       localStorage.setItem('token', res.token);
+      localStorage.setItem('username', (res.user as any).username || username);
       onLogin(res.token);
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : '网络错误');

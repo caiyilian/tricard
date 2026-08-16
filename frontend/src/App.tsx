@@ -49,9 +49,14 @@ export default function App() {
     s.emit('pass', {});
   }, [s]);
 
+  const handleBid = useCallback((action: string) => {
+    s.emit('bid', { action });
+  }, [s]);
+
   // 当 room_state 的 status 变为 playing → 进入游戏页
   const roomStatus = s.roomState?.room?.status;
-  const nextPage = roomStatus === 'playing' ? 'game' : (roomStatus === 'waiting' ? 'room' : 'lobby');
+  const gameStatus = s.roomState?.private?.status;
+  const nextPage = (roomStatus === 'playing' || gameStatus === 'bidding') ? 'game' : (roomStatus === 'waiting' ? 'room' : 'lobby');
 
   return (
     <div style={{ background: '#0f3460', minHeight: '100vh', overflow: 'auto' }}>
@@ -66,7 +71,7 @@ export default function App() {
           <div style={{ color: '#eee', textAlign: 'center', padding: 40 }}>加入房间中...</div>
         )
       ) : (
-        <GamePage state={s.roomState!} comments={s.comments} onPlay={handlePlay} onPass={handlePass} />
+        <GamePage state={s.roomState!} comments={s.comments} onPlay={handlePlay} onPass={handlePass} onBid={handleBid} />
       )}
     </div>
   );

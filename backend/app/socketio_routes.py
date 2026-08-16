@@ -197,6 +197,28 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
         await sio.emit("ok", {"action": "play"}, to=sid)
         _signal_turn(room)
 
+    @sio.event
+    async def bid(sid, data):
+        meta = _ADDR_BY_SID.get(sid)
+        user = _USER_BY_SID.get(sid)
+        if not meta or not user:
+            return
+        room = room_manager.get(meta[0])
+        if not room or not room.game:
+            return
+        if room.game.status != "bidding":
+            return await sio.emit("error", {"msg": "当前不在叫牌阶段"}, to=sid)
+        seat = room.seat_of(user["username"])
+        action = (data or {}).get("action", "")
+        ok = room.game.bid(seat, action)
+        if not ok:
+            return await sio.emit("error", {"msg": "非法叫牌"}, to=sid)
+        await sio.emit("ok", {"action": "bid"}, to=sid)
+        _signal_turn(room)
+        await _broadcast_room(sio, room)
+        if room.game.status == "playing":
+            _ROOM_TASKS[room.code] = asyncio.create_task(_turn_loop(sio, room))
+
 
 def _signal_turn(room) -> None:
     ev = getattr(room, "turn_event", None)
@@ -208,7 +230,7 @@ async def _begin_game(sio, room: Room) -> None:
     try:
         room.fill_ai_seats()
         game = Game()
-        game.start()
+        game.start()  # enters bidding phase
         room.game = game
         room.status = "playing"
         room.ai_players = {
@@ -216,12 +238,49 @@ async def _begin_game(sio, room: Room) -> None:
             for i, seat in enumerate(room.seats)
         }
         room.commentator = make_commentator(room, sio)
-        room.turn_event = asyncio.Event()
-        _ROOM_TASKS[room.code] = asyncio.create_task(_turn_loop(sio, room))
+        # AI 在叫牌阶段自动叫地主/不叫
+        _ROOM_TASKS[room.code] = asyncio.create_task(_bidding_loop(sio, room))
         await _broadcast_room(sio, room)
     except Exception:  # noqa: BLE001
         logger.exception("begin_game failed")
         room.status = "waiting"
+
+
+async def _bidding_loop(sio, room: Room) -> None:
+    try:
+        while room.game.status == "bidding":
+            seat = room.game.bidding_seat
+            await _broadcast_room(sio, room)
+            if room.seats[seat].is_ai:
+                # AI 简单策略：随机叫地主
+                import random
+                action = "landlord" if random.random() < 0.3 else "pass"
+                room.game.bid(seat, action)
+            else:
+                room.turn_event = asyncio.Event()
+                timeout_task = asyncio.create_task(_bid_timeout(sio, room, seat))
+                try:
+                    await room.turn_event.wait()
+                finally:
+                    timeout_task.cancel()
+                    try:
+                        await timeout_task
+                    except asyncio.CancelledError:
+                        pass
+            await _broadcast_room(sio, room)
+        if room.game.status == "playing":
+            await _turn_loop(sio, room)
+    except Exception:  # noqa: BLE001
+        logger.exception("bidding_loop crashed")
+    finally:
+        _ROOM_TASKS.pop(room.code, None)
+
+
+async def _bid_timeout(sio, room: Room, seat: int) -> None:
+    await asyncio.sleep(config.PLAY_TIMEOUT)
+    # 超时自动"不叫"
+    room.game.bid(seat, "pass")
+    _signal_turn(room)
 
 
 async def _turn_loop(sio, room: Room) -> None:

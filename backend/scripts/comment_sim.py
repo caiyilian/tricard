@@ -23,7 +23,7 @@ AI_SEAT_TEMPLATE = [
 def run_one(seed: int, mode: str) -> dict:
     comments: list[dict] = []
     game = Game()
-    game.start(seed=seed)
+    game.start_quick(seed=seed)
     players = [BasicAI(name="p0"), BasicAI(name="p1"), BasicAI(name="p2")]
     com = Commentator(seats=AI_SEAT_TEMPLATE, mode=mode, emit=comments.append)
     prev_trick = 0

@@ -8,6 +8,7 @@ from . import dou_dz_adapter as dz
 
 class Game:
     STATUS_IDLE = "idle"
+    STATUS_BIDDING = "bidding"
     STATUS_PLAYING = "playing"
     STATUS_FINISHED = "finished"
 
@@ -29,24 +30,73 @@ class Game:
         self.winner_seat: int | None = None
         self.spring: bool = False
 
+        self.bidders: list[bool] = [False, False, False]  # 每人是否叫过地主
+        self.bidding_seat: int = 0
+        self.last_bid: int | None = None  # 最后一个叫地主的座位
+
         self.listeners: list[callable] = []
 
     # ---------------------------------------------------------------- setup
 
     def start(self, seed: int | None = None) -> None:
-        """发牌并随机指定地主，地主先出。"""
+        """发牌并进入抢地主阶段。"""
+        if seed is not None:
+            random.seed(seed)
+        hands, bottom = dz.deal()
+        self.hands = hands
+        self.bottom = bottom
+        self.status = self.STATUS_BIDDING
+        self.bidding_seat = 0
+        self.bidders = [False, False, False]
+        self.last_bid = None
+        self._emit("bidding_start")
+
+    def start_quick(self, seed: int | None = None) -> None:
+        """发牌直接分配地主（跳过抢地主）。用于测试/模拟。"""
         if seed is not None:
             random.seed(seed)
         hands, bottom = dz.deal()
         self.hands = hands
         self.bottom = bottom
         self.landlord_seat = random.randrange(3)
-        # 底牌并入地主手牌
         self.hands[self.landlord_seat] = dz.sort_cards(self.hands[self.landlord_seat] + bottom)
         self.turn = self.landlord_seat
         self.status = self.STATUS_PLAYING
         self.trick_index = 1
         self._emit("game_start", landlord=self.landlord_seat, bottom=dz.cards_label(bottom))
+
+    def bid(self, seat: int, action: str) -> bool:
+        """叫地主：action='landlord'|'pass'。返回 True 表示有效。"""
+        if self.status != self.STATUS_BIDDING or seat != self.bidding_seat:
+            return False
+        if action == "landlord":
+            self.last_bid = seat
+            self.landlord_seat = seat
+            self.bidders[seat] = True
+            # 有人叫地主，立即结束叫牌
+            self._finish_bidding()
+            return True
+        elif action == "pass":
+            self.bidders[seat] = True
+            # 轮到下一个人
+            next_seat = (seat + 1) % 3
+            # 如果所有人都过了（三人都 pass），最后一人强制为地主
+            if all(self.bidders):
+                self.landlord_seat = next_seat  # 最后一个玩家强制地主
+                self._finish_bidding()
+            else:
+                self.bidding_seat = next_seat
+                self._emit("bid_turn", seat=self.bidding_seat)
+            return True
+        return False
+
+    def _finish_bidding(self) -> None:
+        # 底牌并入地主手牌
+        self.hands[self.landlord_seat] = dz.sort_cards(self.hands[self.landlord_seat] + self.bottom)
+        self.turn = self.landlord_seat
+        self.status = self.STATUS_PLAYING
+        self.trick_index = 1
+        self._emit("game_start", landlord=self.landlord_seat, bottom=dz.cards_label(self.bottom))
 
     def prime(self, hands: list[list[int]], bottom: list[int], landlord_seat: int, turn: int) -> None:
         """测试/残局用：注入固定局面。"""
@@ -172,5 +222,5 @@ class Game:
 
 def new_standard_game(seed: int | None = None) -> Game:
     g = Game()
-    g.start(seed=seed)
+    g.start_quick(seed=seed)
     return g

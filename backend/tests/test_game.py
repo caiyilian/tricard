@@ -12,14 +12,14 @@ def game():
 class TestDeal:
     def test_deal_sizes(self):
         g = Game()
-        g.start(seed=1)
+        g.start_quick(seed=1)
         assert sorted(len(h) for h in g.hands) == [17, 17, 20]  # 地主 20（含底牌）
         assert len(g.bottom) == 3
         assert g.landlord_seat in (0, 1, 2)
 
     def test_no_duplicate_cards(self):
         g = Game()
-        g.start(seed=2)
+        g.start_quick(seed=2)
         all_cards = [c for h in g.hands for c in h]
         assert sum(len(h) for h in g.hands) == 54
         assert len(set(all_cards)) == 54                       # 54 张各不相同
@@ -168,7 +168,7 @@ class TestSimulate:
         from scripts.simulate_game import choose_move
 
         game = Game()
-        game.start(seed=42)
+        game.start_quick(seed=42)
         turns = 0
         while game.status == Game.STATUS_PLAYING:
             turns += 1

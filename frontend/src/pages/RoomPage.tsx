@@ -10,9 +10,12 @@ interface Props {
 
 export default function RoomPage({ state, onReady, onStart, onLeave }: Props) {
   const room = state.room;
-  const seat = state.private ? room.seats[0] : null;
-  const isHost = seat?.username === (JSON.parse(localStorage.getItem('user') || '{}')).username; // simplified
-  const allReady = room.those_ready.length >= room.seats.filter(s => s && !s.is_ai).length;
+  const myUsername = localStorage.getItem('username') || '';
+  const mySeat = room.seats.findIndex(s => s?.username === myUsername);
+  const mySeatInfo = mySeat >= 0 ? room.seats[mySeat] : null;
+  const isHost = mySeat === room.host_seat;
+  const humans = room.seats.filter(s => s && !s.is_ai);
+  const allReady = humans.length > 0 && humans.every(s => s.ready);
 
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', padding: 20, color: '#eee' }}>
@@ -29,6 +32,7 @@ export default function RoomPage({ state, onReady, onStart, onLeave }: Props) {
               {s ? (
                 <>
                   <span style={{ fontWeight: 'bold' }}>{s.nickname}</span>
+                  {i === room.host_seat && <span style={{ marginLeft: 6, fontSize: 11, color: '#ffd700', background: '#333', padding: '1px 5px', borderRadius: 3 }}>房主</span>}
                   {s.is_ai && <span style={{ marginLeft: 8, fontSize: 12, color: '#aaa', background: '#0f3460', padding: '2px 6px', borderRadius: 4 }}>AI</span>}
                   {s.connected && <span style={{ marginLeft: 8, fontSize: 12, color: '#4ecca3' }}>●</span>}
                   {!s.connected && <span style={{ marginLeft: 8, fontSize: 12, color: '#666' }}>○</span>}
@@ -43,12 +47,19 @@ export default function RoomPage({ state, onReady, onStart, onLeave }: Props) {
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-        <button onClick={onReady} style={{ flex: 1, padding: 12, backgroundColor: '#4ecca3', color: '#1a1a2e', border: 'none', borderRadius: 6, fontSize: 16, cursor: 'pointer' }}>
-          {seat?.ready ? '取消准备' : '准备'}
-        </button>
-        {isHost && (
-          <button onClick={onStart} style={{ flex: 1, padding: 12, backgroundColor: allReady ? '#e94560' : '#333', color: allReady ? '#fff' : '#666', border: 'none', borderRadius: 6, fontSize: 16, cursor: allReady ? 'pointer' : 'not-allowed' }}>
+        {isHost ? (
+          <button onClick={onStart} disabled={!allReady} style={{
+            flex: 1, padding: 12, border: 'none', borderRadius: 6, fontSize: 16, cursor: allReady ? 'pointer' : 'not-allowed',
+            backgroundColor: allReady ? '#e94560' : '#333', color: allReady ? '#fff' : '#666',
+          }}>
             开始游戏
+          </button>
+        ) : (
+          <button onClick={onReady} style={{
+            flex: 1, padding: 12, border: 'none', borderRadius: 6, fontSize: 16, cursor: 'pointer',
+            backgroundColor: mySeatInfo?.ready ? '#666' : '#4ecca3', color: '#fff',
+          }}>
+            {mySeatInfo?.ready ? '取消准备' : '准备'}
           </button>
         )}
       </div>
