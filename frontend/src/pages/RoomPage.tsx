@@ -14,8 +14,9 @@ export default function RoomPage({ state, onReady, onStart, onLeave }: Props) {
   const mySeat = room.seats.findIndex(s => s?.username === myUsername);
   const mySeatInfo = mySeat >= 0 ? room.seats[mySeat] : null;
   const isHost = mySeat === room.host_seat;
-  const humans = room.seats.filter(s => s && !s.is_ai);
-  const allReady = humans.length > 0 && humans.every(s => s.ready);
+  // 检查非房主真人是否全部就绪（房主不需准备）
+  const nonHostHumans = room.seats.filter((s, i) => s && !s.is_ai && i !== room.host_seat);
+  const allReady = nonHostHumans.every(s => s.ready);
 
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', padding: 20, color: '#eee' }}>
@@ -40,7 +41,7 @@ export default function RoomPage({ state, onReady, onStart, onLeave }: Props) {
               ) : <span style={{ color: '#555' }}>等待玩家...</span>}
             </div>
             <div style={{ fontSize: 12, color: s?.ready ? '#4ecca3' : '#666' }}>
-              {s?.ready ? '已准备' : (s && !s.is_ai ? '未准备' : '')}
+              {s?.ready ? '已准备' : (s && !s.is_ai && i !== room.host_seat ? '未准备' : '')}
             </div>
           </div>
         ))}

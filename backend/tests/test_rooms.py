@@ -32,9 +32,7 @@ class TestRoomBasics:
         mgr = RoomManager()
         host = make_user()
         r = mgr.create(host, base_bet=200)
-        ok, msg = r.can_start(host["username"])
-        assert not ok and "准备" in msg          # 真人未准备
-        r.set_ready(host["username"], True)
+        # 房主自动就绪，无其他真人 → 可直接开始
         ok, msg = r.can_start(host["username"])
         assert ok, msg
         # 非房主不能开始

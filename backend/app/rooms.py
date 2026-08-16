@@ -208,7 +208,7 @@ class RoomManager:
     def create(self, host_user: dict, base_bet: int = 200, ai_type: str = "basic", personality: str = "savage") -> Room:
         code = self._gen_code()
         host = Seat(user_id=host_user["id"], username=host_user["username"], nickname=host_user["nickname"],
-                    avatar=host_user.get("avatar"), connected=True)
+                    avatar=host_user.get("avatar"), connected=True, ready=True)  # 房主自动就绪
         room = Room(code=code, host_seat=0, base_bet=base_bet, seats=[host, None, None])
         room.default_ai_type = _norm_ai_type(ai_type)
         room.fill_ai_seats(room.default_ai_type)
