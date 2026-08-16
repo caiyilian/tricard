@@ -27,6 +27,7 @@ class Game:
         self.history: list[dict] = []
         self.winner_team: str | None = None  # "landlord" | "farmers"
         self.winner_seat: int | None = None
+        self.spring: bool = False
 
         self.listeners: list[callable] = []
 
@@ -149,7 +150,12 @@ class Game:
         self.status = self.STATUS_FINISHED
         self.winner_seat = seat
         self.winner_team = self.team_of(seat)
-        self._emit("game_end", winner=seat, team=self.winner_team, bombs=self.bomb_count)
+        # 春天：地主一手没被打断就出完（农民没出过牌）；或农民赢时地主没出过牌
+        if self.winner_team == "landlord":
+            self.spring = all(self.hand_size(s) == 17 for s in range(3) if s != self.landlord_seat)
+        else:
+            self.spring = self.hand_size(self.landlord_seat) == 20
+        self._emit("game_end", winner=seat, team=self.winner_team, bombs=self.bomb_count, spring=self.spring)
 
     def _emit(self, event: str, **kw) -> None:
         for fn in self.listeners:

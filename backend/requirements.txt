@@ -6,5 +6,6 @@ doudizhu
 openai
 numpy
 sqlalchemy
+python-multipart
 pytest
 pytest-asyncio
