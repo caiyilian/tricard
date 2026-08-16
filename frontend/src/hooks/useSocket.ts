@@ -31,6 +31,7 @@ export function useSocket(token: string | null) {
     s.on('error', (d: ErrorEvent) => setError(d.msg));
     s.on('ok', (d: { action: string }) => setOkAction(d));
     s.on('timed_out', (d: { seat: number }) => setTimedOut(d));
+    s.on('redirect', (d: { to: string }) => { /* handled by App */ });
     return () => { s.disconnect(); socketRef.current = null; };
   }, [token]);
 

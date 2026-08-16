@@ -201,14 +201,9 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
             ⏱ {timer}s
           </div>
         ) : (
-          <>
-            {lastLabel(0)?.map((l, i) => (
-              <img key={i} src={cardImg(l)} style={{ width: 42, height: 60, borderRadius: 4, marginLeft: i > 0 ? -10 : 0 }} />
-            ))}
-            {!lastLabel(0) && priv.last_play_labels.length > 0 && (
-              priv.last_play_labels.map((l, i) => <img key={i} src={cardImg(l)} style={{ width: 42, height: 60, borderRadius: 4, marginLeft: i > 0 ? -10 : 0 }} />)
-            )}
-          </>
+          lastLabel(0)?.map((l, i) => (
+            <img key={i} src={cardImg(l)} style={{ width: 42, height: 60, borderRadius: 4, marginLeft: i > 0 ? -10 : 0 }} />
+          ))
         )}
       </div>
 

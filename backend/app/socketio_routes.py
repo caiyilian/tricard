@@ -127,19 +127,19 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
         meta = _ADDR_BY_SID.pop(sid, None)
         user = _USER_BY_SID.get(sid)
         if not meta:
-            return
+            return await sio.emit("redirect", {"to": "lobby"}, to=sid)
         code, _ = meta
         room = room_manager.get(code)
         if room and room.status == "waiting":
             if user and room.seat_of(user["username"]) is not None:
                 room.seats = [None if s is not None and s.username == user["username"] else s for s in room.seats]
-                # 如果房主离开，解散房间
                 host = room.seats[room.host_seat]
                 if host is None or not host.connected:
                     room_manager.remove(code)
                 else:
                     room.fill_ai_seats()
                     await _broadcast_room(sio, room)
+            await sio.emit("redirect", {"to": "lobby"}, to=sid)
 
     @sio.event
     async def set_ready(sid, data):

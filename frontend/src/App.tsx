@@ -8,7 +8,7 @@ import GamePage from './pages/GamePage';
 export default function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
   const [page, setPage] = useState<'lobby' | 'room' | 'game'>('lobby');
-  const [myCode, setMyCode] = useState<string | null>(null);
+  const [leftRoom, setLeftRoom] = useState(false);
 
   const s = useSocket(token);
 
@@ -19,17 +19,20 @@ export default function App() {
 
   const handleCreate = useCallback(() => {
     s.emit('create_room', { base_bet: 200, ai_type: 'basic' });
+    setLeftRoom(false);
     setPage('room');
   }, [s]);
 
   const handleJoin = useCallback((code: string) => {
     s.emit('join_room', { code });
     setMyCode(code);
+    setLeftRoom(false);
     setPage('room');
   }, [s]);
 
   const handleLeave = useCallback(() => {
     s.emit('leave_room');
+    setLeftRoom(true);
     setPage('lobby');
   }, [s]);
 
@@ -57,7 +60,7 @@ export default function App() {
   const roomStatus = s.roomState?.room?.status;
   const gameStatus = s.roomState?.private?.status;
   const hasGameEnd = s.gameEnd !== null;
-  const nextPage = (roomStatus === 'playing' || gameStatus === 'bidding' || hasGameEnd) ? 'game' : (roomStatus === 'waiting' ? 'room' : 'lobby');
+  const nextPage = leftRoom ? 'lobby' : (roomStatus === 'playing' || gameStatus === 'bidding' || hasGameEnd) ? 'game' : (roomStatus === 'waiting' ? 'room' : 'lobby');
 
   return (
     <div style={{ background: '#0f3460', minHeight: '100vh', overflow: 'auto' }}>
