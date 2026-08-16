@@ -37,6 +37,12 @@ tricard/
 │   │   ├── ai_basic.py      # 规则 AI 兜底（~100 行贪心）★自研
 │   │   ├── ai_llm.py        # LLM 决策层（JSON/重试/回退）★自研
 │   │   ├── ai_douzero.py    # DouZero 强 AI（离线价值网络）★封装
+│   │   ├── commentary/      # AI 评论系统（嘲讽/夸奖，见「评论系统设计」）
+│   │   │   ├── detector.py      # 局面探测器（确定性规则，非随机）
+│   │   │   ├── salience.py      # 显著度评估 + 频控（羞耻值累计）
+│   │   │   ├── phrase_bank.py   # 零额度短语库
+│   │   │   ├── llm_comment.py   # LLM 措辞生成（json_object，失败回退短语库）
+│   │   │   └── commentator.py   # 编排 + 广播
 │   │   └── key_picker.py    # 7 个 key 轮换调度 ★自研
 │   ├── scripts/             # 可运行的自动验证脚本
 │   ├── tests/               # pytest
@@ -58,6 +64,43 @@ tricard/
 1. **LLM 的价值不在"赢"，而在"像人"**——它出差错正是趣味所在，不追求胜过 DouZero。
 2. 座位难度可独立配置：比如"1 真人 + 1 个 DouZero + 1 个 LLM"或 3 个真人，自由组合。
 3. DouZero 负责严肃游戏（零额度），LLM 负责拟人氛围，两端定位不同、不浪费额度。
+
+### AI 评论系统设计（嘲讽 / 夸奖 / 弹幕人格）
+
+**核心理念**
+- **有因果、不是随机刷屏**：只在规则层识别出**确定的"坑/亮点"局面**后才触发；措辞可选 LLM 生成保证多样性。
+- **团队关系感知**：AI 清楚自己与目标的关系（队友 / 对手），口吻不同——是队友就"损"（"你是不是在演我？"），是对手就嘲讽。
+- **连续坑 = 连续被嘲**：靠**羞耻值累计**与**冷却**控制频率，一次失误不会立刻挨怼，越坑台词越密。
+
+**触发源 = 游戏事件流**：`play / pass / bomb / round_end / game_end`。即时检测 move 级事件；每轮结束做一次"整轮复盘"。评论只在**天然停顿处**输出（回合结算/整轮结束/胜负点），不打断交互。
+
+**检测器清单（确定性规则）** —— 非随机，构造具体局面即断言触发：
+| ID | 名称 | 示例规则（命中即产生"显著度"） |
+|----|------|----|
+| `keng_stepping` | 踩队友 | 农民打出的牌压过队友即将收尾的一手，随后被地主压死并加速地主出完 |
+| `keng_boost` | 帮倒忙 | 地主剩牌 ≤3 且己方能压却过一手（直接让地主清空） |
+| `keng_no_send` | 不送牌 | 队友剩 1 张，自己起手却丢对子/大牌，不给队友走单的机会 |
+| `keng_friendly_fire` | 误伤 | 两农民互相炸弹消耗 |
+| `keng_blow` | 送葬 | 大优势（己方低剩牌）因一手失误被翻盘 |
+| `bright_bomb` | 神炸 | 炸弹时机精准，炸后队友获得掌控并获胜 |
+| `bright_send` | 送跑 | 给剩 1 张的队友送单，队友光速获胜 |
+| `bright_comeback` | 绝地 | 劣势局完成反超获胜 |
+（地主视角自动映射同构变体：神走位 / 被两农民反杀 等）
+
+**频控（不刷屏）**
+- **显著度** = 规则强度 × 累计羞耻/荣誉系数，达标才触发，触发后该座位系数归零。
+- 每座位冷却 N 回合；全局每轮最多 M 条；每局每座位最多 K 条（N/M/K 做成配置）。
+- 评价对象包括真人玩家 —— 你说得对：真人跟 AI 一队坑了它，它也会损你。
+
+**措辞生成（双通道）**
+1. **默认** `phrase_bank`（零额度）：按 archetype + 力度从模板随机选句填座位名。
+2. **可选 LLM 措辞**：仅高显著度触发时调用一次；prompt 含 archetype、与目标关系、该轮牌序、目标剩牌变化、AI 人格；强制 `json_object` 输出 1~2 句话。
+3. LLM 失败/超时 → 回退 `phrase_bank`，**永不阻塞牌局**。
+4. 额度控制：每局 LLM 措辞默认 ≤2 条，其余走短语库（决策调用优先保证额度）。
+
+**人格开关（每座位可配）**：`off`（不评论）/ `kind`（温和多夸）/ `savage`（毒舌多嘲）/ `chatterbox`（话多）。前端以聊天气泡 + 弹幕形式展示。
+
+**与聊天共存**：真人聊天走 `chat` 事件；AI 评论走 `comment` 事件，前端不同样式，不冲突。
 
 自动化测试统一用 **pytest**（单测 + SocketIO 多客户端集成测试），真实对局用 `scripts/` 脚本模拟，负责我的"自测验收"。
 
@@ -175,12 +218,40 @@ python backend/scripts/auto_battle.py 100 --mix basic,douzero,llm   # 混搭 100
 
 ---
 
+## 阶段 4.5：AI 评论系统（嘲讽 / 夸奖 / 弹幕人格）
+**工作量：小~中（纯后端 + 事件流，前端显示随阶段 6 一起做）**
+
+做：
+- 按上文「AI 评论系统设计」实现 `doudizhu/commentary/` 五件套：
+  - `detector.py`：实现检测器清单（踩队友/帮倒忙/不送牌/误伤/送葬/神炸/送跑/绝地）
+  - `salience.py`：显著度 = 强度 × 羞耻累计，达标才触发；冷却/每轮上限/每局上限（N/M/K 可配）
+  - `phrase_bank.py`：按 archetype 分档短语库（零额度）
+  - `llm_comment.py`：高频场景用 LLM 措辞（json_object），失败回退短语库，每局默认 ≤2 条
+  - `commentator.py`：订阅 `game` 事件流 → 检测 → 频控 → 广播
+- `game.py` 增加事件钩子（play/pass/bomb/round_end/game_end），评论只在天然停顿处输出
+- 座位人格配置：`off / kind / savage / chatterbox`
+- 评价对象包含真人玩家（真人队友坑了 AI，AI 会当面损）
+
+验收标准：
+- [ ] 构造"踩队友/送葬/不送牌/神炸"等具体局面，单测断言对应 archetype 触发（确定性，不靠随机）
+- [ ] mock 评论事件流 100 盘，全局条数不超过上限（不刷屏）
+- [ ] LLM 措辞在 mock 失败时回退短语库，牌局不中断
+- [ ] `comment` 事件经 SocketIO 广播格式正确
+
+我的测试：
+```
+pytest backend/tests/test_commentary.py -v
+python backend/scripts/comment_sim.py 100     # mocker 走事件流，统计条数/触发分布
+```
+
+---
+
 ## 阶段 5：SocketIO 联机房间
 **工作量：中（协议 + 并发）**
 
 做：
 - `rooms.py`：6 位房号、创建/加入/退出、座位抢占（真人入座自动顶替 AI）
-- SocketIO 事件：`join/create/deal/bid/play/pass/state/reconnect/leave`
+- SocketIO 事件：`join/create/deal/bid/play/pass/state/reconnect/leave/chat/comment`（`chat`=真人聊天，`comment`=AI 评论）
 - 广播策略：整房状态按需全量下发 + 增量事件
 - 空位 AI 自动补位（难度默认 `basic`，各座位可独立配置 `basic`/`douzero`/`llm`）
 - 断线保留座位 30s，重连后全量同步（SocketIO 自带 reconnect 事件做触发）
@@ -203,8 +274,9 @@ python backend/scripts/ws_clients.py 123456
 **工作量：中（界面 + SocketIO 对接）**
 
 做：
-- 房间页：创建/输入房号、座位显示（真人/AI 标签、难度）
+- 房间页：创建/输入房号、座位显示（真人/AI 标签、难度、人格）
 - 游戏页：手牌渲染（CSS/SVG 画牌）、出牌区、上下家剩牌、回合提示、叫地主、倒计时、出牌动画
+- AI 评论展示：聊天气泡 + 弹幕样式（`comment` 事件），真人聊天区（`chat`），两者样式区分
 - `socket.io-client` 对接后端，状态全部服务端广播驱动
 - 单机模式 = 1 真人 + 2 AI 本机房间
 
@@ -249,6 +321,7 @@ run.bat   # 启动后按提示访问局域网 IP:8000 手测
 | 2 | `pytest test_ai_basic.py` + auto_battle | 全过 + 100 盘无异常 |
 | 3 | `pytest test_ai_llm.py` + hand_test | 全过 + 真实调用合法 |
 | 4 | `douzero_smoke.py` | 高手 AI 合法打一局 |
+| 4.5 | `pytest test_commentary.py` + comment_sim | 全过 + 触发确凿、不刷屏 |
 | 5 | `pytest test_ws_game.py` + ws_clients | 全过 + 3 客户端整局 |
 | 6 | `npm run dev` + 局域网手测 | 可完整对战 |
 | 7 | `run.bat` + 手测 | 一条命令可玩 |
@@ -260,6 +333,7 @@ run.bat   # 启动后按提示访问局域网 IP:8000 手测
 - [ ] 阶段 2：规则 AI 兜底
 - [ ] 阶段 3：LLM 决策层
 - [ ] 阶段 4：DouZero 强 AI
+- [ ] 阶段 4.5：AI 评论系统
 - [ ] 阶段 5：SocketIO 联机房间
 - [ ] 阶段 6：前端界面
 - [ ] 阶段 7：体验完善与一键启动

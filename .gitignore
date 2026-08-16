@@ -7,6 +7,7 @@ sensenova_apikey.txt
 # third-party cloned repos (do not upload)
 third_party/
 backend/models/
+whl/
 
 # python
 __pycache__/
