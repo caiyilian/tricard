@@ -1,0 +1,17 @@
+.venv
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.example
+.git/
+.github/
+third_party/
+docs_local/
+whl/
+backend/data/
+backend/models/
+node_modules/
+.gitignore
+*.md
+chat.md

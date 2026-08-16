@@ -1,0 +1,9 @@
+services:
+  tricard:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/data:/app/backend/data
+      - ./.env:/app/.env
+    restart: unless-stopped
