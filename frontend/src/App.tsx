@@ -53,10 +53,11 @@ export default function App() {
     s.emit('bid', { action });
   }, [s]);
 
-  // 当 room_state 的 status 变为 playing → 进入游戏页
+  // 当 room_state 的 status 变为 playing → 进入游戏页；gameEnd 时留在游戏页显示结算
   const roomStatus = s.roomState?.room?.status;
   const gameStatus = s.roomState?.private?.status;
-  const nextPage = (roomStatus === 'playing' || gameStatus === 'bidding') ? 'game' : (roomStatus === 'waiting' ? 'room' : 'lobby');
+  const hasGameEnd = s.gameEnd !== null;
+  const nextPage = (roomStatus === 'playing' || gameStatus === 'bidding' || hasGameEnd) ? 'game' : (roomStatus === 'waiting' ? 'room' : 'lobby');
 
   return (
     <div style={{ background: '#0f3460', minHeight: '100vh', overflow: 'auto' }}>

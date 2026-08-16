@@ -92,7 +92,8 @@ class Room:
             self.seats[i].ready = ready
 
     def all_humans_ready(self) -> bool:
-        humans = [s for s in self.seats if s and not s.is_ai]
+        # 房主自动就绪，不参与检查
+        humans = [s for i, s in enumerate(self.seats) if s and not s.is_ai and i != self.host_seat]
         return all(s.ready for s in humans) if humans else True
 
     def can_start(self, host_username: str) -> tuple[bool, str]:

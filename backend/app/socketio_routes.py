@@ -386,6 +386,9 @@ async def _finish_room(sio, room: Room) -> None:
         for s in room.seats:
             if s and not s.is_ai:
                 s.ready = False
+        # 房主自动就绪
+        if room.seats[room.host_seat]:
+            room.seats[room.host_seat].ready = True
         room.game = None
         room.ai_players = {}
         room.commentator = None
