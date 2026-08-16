@@ -13,9 +13,37 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # backend/
 from dzcore.ai_basic import BasicAI  # noqa: E402
 from dzcore.game import Game  # noqa: E402
 
+
+def _make_basic(name, _kind):
+    return BasicAI(name=name)
+
+
+def _make_llm(name, _kind):
+    from dzcore.ai_llm import LLMAI
+    from app.key_picker import KeyPicker
+    from app import config
+
+    return LLMAI(name=name, picker=KeyPicker(config.SENSENOVA_API_KEYS))
+
+
+def _make_douzero(name, _kind):
+    from dzcore.ai_douzero import DouZeroAI
+
+    return DouZeroAI(name=name)
+
+
 AI_FACTORIES = {
-    "basic": lambda name, cfg: BasicAI(name=name),
+    "basic": _make_basic,
+    "llm": _make_llm,
+    "douzero": _make_douzero,
 }
+
+# 上下文：AI 出牌时把当前 game 对象传进去，供 DouZero 重放使用
+_current_game: dict = {}
+
+
+def _ctx():
+    return {"game": _current_game.get("game")}
 
 
 def build_players(mix: list[str]) -> list:
@@ -30,12 +58,13 @@ def build_players(mix: list[str]) -> list:
 def play_one(players: list, seed: int) -> dict:
     game = Game()
     game.start(seed=seed)
+    _current_game["game"] = game
     turns = 0
     while game.status == Game.STATUS_PLAYING:
         turns += 1
         assert turns < 1000, f"possible infinite loop at seed {seed}"
         seat = game.turn
-        move = players[seat].choose_action(game.hands[seat], game.last_play)
+        move = players[seat].choose_action(game.hands[seat], game.last_play, _ctx())
         if move is None:
             assert game.do_pass(seat)
         else:

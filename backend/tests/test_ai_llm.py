@@ -5,7 +5,7 @@ import pytest
 from app.key_picker import KeyPicker
 from dzcore import dou_dz_adapter as dz
 from dzcore.ai_basic import BasicAI
-from dzcore.ai_llm import INVALID, LLMAI, _labels_to_hand_int
+from dzcore.ai_llm import LLMAI
 from dzcore.game import Game
 from dzcore.prompt_builder import build_prompt
 
@@ -73,14 +73,14 @@ class TestPromptBuilder:
 class TestLabelToInt:
     def test_basic(self):
         hand = dz.Card.card_ints_from_string("3c-5d-9h-As-CJ-BJ")
-        got = _labels_to_hand_int(["3", "A"], hand)
+        got = dz.labels_to_hand_int(["3", "A"], hand)
         assert got is not None and len(got) == 2
         labels = [dz.Card.rank_int_to_str(c) for c in got]
         assert sorted(labels) == ["3", "A"]
 
     def test_not_enough(self):
         hand = dz.Card.card_ints_from_string("3c-5d")
-        assert _labels_to_hand_int(["3", "3"], hand) is None
+        assert dz.labels_to_hand_int(["3", "3"], hand) is None
 
 
 class TestLLMAI:

@@ -25,6 +25,9 @@ SENSENOVA_TIMEOUT: float = float(os.getenv("SENSENOVA_TIMEOUT", "20"))
 PLAY_TIMEOUT: int = int(os.getenv("PLAY_TIMEOUT", "30"))  # 每手出牌限时（秒）
 COMMENTATOR_MODE: str = os.getenv("COMMENTATOR_MODE", "hybrid")  # rules_only / hybrid / llm_judge
 
+# ---- douzero ----
+DOUZERO_MODELS_DIR: str = os.getenv("DOUZERO_MODELS_DIR", str(BACKEND_DIR / "models" / "douzero_WP"))
+
 # ---- db ----
 DB_PATH: Path = Path(os.getenv("DB_PATH", str(DATA_DIR / "doudizhu.db")))
 AVATAR_DIR: Path = DATA_DIR / "avatars"

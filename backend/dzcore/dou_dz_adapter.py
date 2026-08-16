@@ -93,3 +93,22 @@ def minimal_lead(hand: list[int]) -> list[int]:
 
 def count_bomb_rocket(cards: list[int]) -> bool:
     return play_type(cards) in ("bomb", "rocket")
+
+
+def labels_to_hand_int(labels: list[str], hand: list[int]) -> list[int] | None:
+    """按牌面名称（如 "3","A","BJ"）从手中选出对应 int；数量不足返回 None。"""
+    need = Counter(labels)
+    remain = Counter(card_label(c) for c in hand)
+    if any(remain[l] < n for l, n in need.items()):
+        return None
+    result: list[int] = []
+    used: set[int] = set()
+    for l in labels:
+        for i, c in enumerate(hand):
+            if i in used:
+                continue
+            if card_label(c) == l:
+                result.append(c)
+                used.add(i)
+                break
+    return result

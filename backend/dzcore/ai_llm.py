@@ -15,6 +15,8 @@ from dzcore.ai_basic import BasicAI
 from dzcore.prompt_builder import build_prompt
 
 logger = logging.getLogger("tricard.llm_ai")
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
 
 INVALID = object()  # 解析出来但不符合规则的决策
 
@@ -104,31 +106,9 @@ class LLMAI:
         if not isinstance(raw_cards, list) or not raw_cards:
             return INVALID
         raw_labels = [str(c) for c in raw_cards]
-        chosen = _labels_to_hand_int(raw_labels, hand)
+        chosen = dz.labels_to_hand_int(raw_labels, hand)
         if chosen is None:
             return INVALID
         if not dz.can_beat(chosen, last_play):
             return INVALID
         return chosen
-
-
-def _labels_to_hand_int(labels: list[str], hand: list[int]) -> list[int] | None:
-    """按 label 从 hand 里挑对应牌面（花色任意）。数量不足返回 None。"""
-    from collections import Counter
-
-    needed = Counter(labels)
-    remain = Counter(dz.Card.rank_int_to_str(c) for c in hand)
-    for l, n in needed.items():
-        if remain[l] < n:
-            return None
-    result: list[int] = []
-    used = set()
-    for l in labels:
-        for i, c in enumerate(hand):
-            if i in used:
-                continue
-            if dz.Card.rank_int_to_str(c) == l:
-                result.append(c)
-                used.add(i)
-                break
-    return result
