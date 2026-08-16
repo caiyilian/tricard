@@ -36,6 +36,7 @@ tricard/
 │   │   ├── auth.py          # 注册/登录路由
 │   │   ├── users.py         # 资料查询/改昵称/头像上传
 │   │   ├── beans.py         # 欢乐豆结算（纯函数，好单测）
+│   │   ├── ranking.py       # 排行榜查询（三榜/缓存/AI过滤）
 │   │   ├── rooms.py         # 房间管理（房号/座位/AI补位）
 │   │   └── socketio_routes.py # SocketIO 事件处理
 │   ├── doudizhu/            # 业务逻辑（牌规则复用 doudizhu 库，其上再加游戏流程）
@@ -237,14 +238,17 @@ python backend/scripts/auto_battle.py 100
 ```
 - 结算在 `game_over` 由**服务端权威**计算并写 DB、广播结算面板（含每项翻倍明细），前端只展示
 - **胜负记录同样随 `game_over` 更新**：赢的玩家 `wins+1`、输的 `losses+1`（AI 账号一样记）
-- **房门票**：欢乐豆 < `base_bet` 的账号不能入房（市面同款"快乐豆不足"拦截）
-- 输光/不足由前端提示充不上（局域网可让房主一键给 AI/所有人回补额度，或个人单机随便造场景）
+- **欢乐豆可为负数**：余额不设下限，欠豆也能继续玩（结算、显示、榜单均支持负值）；`min_beans_required` 入房门槛做成**可配置开关**——私局默认关闭（负数也能进），想要"豆不足拦截"的正式场再开
+- **排行榜**：`GET /api/ranking?by=beans|wins|win_rate&limit=N`，从 `User` 聚合字段排序返回 Top N（昵称/头像/欢乐豆/场次/胜率），每 10 分钟缓存一次；`win_rate` 榜要求 `games ≥ 5` 才上榜防刷；可选过滤 AI 账号
+- 输光/不足由前端提示（可负余额下多为展示性提示）
 
 ### 做
 - `requirements.txt` 加 `sqlalchemy`
 - `app/db.py`（engine + session）、`app/models.py`（User / MatchRecord）、`app/security.py`（pbkdf2 哈希 + token）、`app/auth.py`（注册/登录）、`app/users.py`（资料查询/改昵称/改头像/上传）
 - `app/beans.py`：纯函数结算（输入：底分、角色、炸弹数、春天 → 输出各账号豆变动 + 胜负归属），好单测
+- `app/ranking.py`：排行榜查询（`by=beans|wins|win_rate`、Top N、缓存、AI 过滤）
 - `scripts/seed_ai.py`：建账号表、插入 AI 账号、回补豆子
+- 阶段 6 前端：排行榜面板（大厅），欢乐豆负数以红色 `-xxxx` 显示
 - 阶段 5 起的 SocketIO 房间：`User` 绑定座位，`game_over` 后调用 `beans.py` 结算入库（含胜负数更新）+ 广播
 - 阶段 6 前端：**欢乐豆余额**在全局导航栏、大厅座位、房间座位、结算面板常显（实时随 `state`/`settle` 事件刷新）
 - 阶段 6 前端：头像/昵称/胜率在大厅座位、结算面板展示
@@ -252,15 +256,17 @@ python backend/scripts/auto_battle.py 100
 验收标准：
 - [ ] 注册/登录/鉴权可用；密码只存哈希；重复用户名被拒
 - [ ] 改昵称（唯一性校验）、上传头像（落盘 + 路径入库）、`GET /api/users/me` 返回完整资料
-- [ ] `beans.py` 单测：无炸弹/1 炸/2 炸/王炸/春天各场景豆子结余正确（含 DB 落库验证），胜负数与胜率随之正确
+- [ ] `beans.py` 单测：无炸弹/1 炸/2 炸/王炸/春天各场景豆子结余正确（含 DB 落库验证），胜负数与胜率随之正确；**余额可为负**（欠豆结算为负并正常落库）
 - [ ] `seed_ai.py` 生成 N 个 AI 账号且各自有豆；重复运行幂等
-- [ ] 豆子 < 房门票 时拒绝入房
+- [ ] 入房门槛：`min_beans_required` 开启时拦截、关闭时负数也可入房
+- [ ] 排行榜三种排序正确；`win_rate` 榜 games<5 不上榜；可过滤 AI
 
 我的测试：
 ```
 pytest backend/tests/test_auth.py -v          # 注册/登录/token
 pytest backend/tests/test_users.py -v         # 资料/改昵称/头像上传
-pytest backend/tests/test_beans.py -v         # 结算公式 + 胜负/胜率
+pytest backend/tests/test_beans.py -v         # 结算公式 + 胜负/胜率 + 负余额
+pytest backend/tests/test_ranking.py -v       # 三榜排序/门槛/AI 过滤
 python backend/scripts/seed_ai.py --ensure     # 建表 + 建 AI 账号（幂等）
 ```
 
