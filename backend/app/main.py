@@ -26,21 +26,16 @@ async def lifespan(app: FastAPI):
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 register_handlers(sio)
 
-app = FastAPI(title="tricard", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="tricard", version="0.3.0", lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(ranking_router)
 app.mount("/avatars", StaticFiles(directory=config.AVATAR_DIR), name="avatars")
 
-
-@app.get("/api/rooms")
-async def rooms_list():
-    from app.socketio_routes import room_manager
-
-    return {"rooms": room_manager.list_rooms()}
-
-
-sio_app = socketio.ASGIApp(sio, other_asgi_app=app)
+# 前端静态文件（生产构建）
+_frontend = config.BACKEND_DIR.parent / "frontend" / "dist"
+if _frontend.exists():
+    app.mount("/", StaticFiles(directory=str(_frontend), html=True), name="frontend")
 
 
 @app.get("/health")
@@ -51,3 +46,13 @@ async def health() -> dict:
         "api_keys": len(config.SENSENOVA_API_KEYS),
         "model": config.SENSENOVA_MODEL,
     }
+
+
+@app.get("/api/rooms")
+async def rooms_list():
+    from app.socketio_routes import room_manager
+
+    return {"rooms": room_manager.list_rooms()}
+
+
+sio_app = socketio.ASGIApp(sio, other_asgi_app=app)
