@@ -334,7 +334,10 @@ async def _run_ai(sio, room: Room, seat: int) -> None:
             timeout=config.PLAY_TIMEOUT,
         )
     except asyncio.TimeoutError:
-        move = g.timeout_action(seat)
+        # LLM 超时 → 使用规则 AI 兜底，而不是简单过
+        from dzcore.ai_basic import BasicAI
+        fallback = BasicAI(name=f"{getattr(ai, 'name', 'AI')}(兜底)")
+        move = fallback.choose_action(g.hands[seat], g.last_play, ctx)
     elapsed = __import__("time").time() - t0
     # AI 出牌太快时至少等 3s，让玩家有反应时间
     wait = max(0, 3.0 - elapsed)
