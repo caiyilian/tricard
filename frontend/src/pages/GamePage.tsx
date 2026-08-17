@@ -18,8 +18,8 @@ function cardImg(label: string): string {
 
 export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeave }: Props) {
   const room = state.room;
-  // 如果 private 为 null，表示游戏已结束房间重置，只显示结算
-  if (!state.private) {
+  // 如果没有结算信息且 private 为 null，表示游戏结束房间已重置
+  if (!state.private && !gameEnd) {
     return (
       <div style={{ maxWidth: 500, margin: '60px auto', padding: 24, background: '#1a1a2e', borderRadius: 12, color: '#eee', textAlign: 'center' }}>
         <h2 style={{ marginBottom: 20 }}>游戏结束</h2>

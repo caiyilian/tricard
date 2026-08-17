@@ -18,12 +18,14 @@ export default function App() {
   }, []);
 
   const handleCreate = useCallback(() => {
+    s.clearGameEnd();
     s.emit('create_room', { base_bet: 200, ai_type: 'basic' });
     setLeftRoom(false);
     setPage('room');
   }, [s]);
 
   const handleJoin = useCallback((code: string) => {
+    s.clearGameEnd();
     s.emit('join_room', { code });
     setMyCode(code);
     setLeftRoom(false);
@@ -31,6 +33,7 @@ export default function App() {
   }, [s]);
 
   const handleLeave = useCallback(() => {
+    s.clearGameEnd();
     s.emit('leave_room');
     setLeftRoom(true);
     setPage('lobby');

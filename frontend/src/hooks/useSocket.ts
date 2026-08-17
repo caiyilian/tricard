@@ -35,5 +35,6 @@ export function useSocket(token: string | null) {
     return () => { s.disconnect(); socketRef.current = null; };
   }, [token]);
 
-  return { connected, roomState, comments, gameEnd, error, okAction, timedOut, emit, setError, setGameEnd, setComments };
+  const clearGameEnd = useCallback(() => setGameEnd(null), []);
+  return { connected, roomState, comments, gameEnd, error, okAction, timedOut, emit, setError, setGameEnd, setComments, clearGameEnd };
 }
