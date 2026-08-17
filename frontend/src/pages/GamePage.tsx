@@ -32,6 +32,7 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
   const handLabels = priv.hand_labels || [];
   const remaining = priv.remaining || [0, 0, 0];
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const selectedRef = useRef<Set<number>>(new Set());
   const [timer, setTimer] = useState(30);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showResult, setShowResult] = useState(false);
@@ -40,7 +41,17 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
     if (priv.status === 'playing' && priv.turn !== null) {
       setTimer(30);
       timerRef.current = setInterval(() => {
-        setTimer(t => { if (t <= 1) { clearInterval(timerRef.current!); return 0; } return t - 1; });
+        setTimer(t => {
+          if (t <= 1) {
+            clearInterval(timerRef.current!);
+            const cards = Array.from(selectedRef.current).map(i => hand[i]);
+            if (cards.length > 0) { onPlay(cards); } else { onPass(); }
+            setSelected(new Set());
+            selectedRef.current = new Set();
+            return 0;
+          }
+          return t - 1;
+        });
       }, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -52,7 +63,12 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
   useEffect(() => { if (gameEnd) setShowResult(true); }, [gameEnd]);
 
   const toggle = useCallback((idx: number) => {
-    setSelected(s => { const n = new Set(s); n.has(idx) ? n.delete(idx) : n.add(idx); return n; });
+    setSelected(s => {
+      const n = new Set(s);
+      n.has(idx) ? n.delete(idx) : n.add(idx);
+      selectedRef.current = n;
+      return n;
+    });
   }, []);
 
   const handlePlay = () => {
