@@ -17,9 +17,9 @@ export default function App() {
     setPage('lobby');
   }, []);
 
-  const handleCreate = useCallback(() => {
+  const handleCreate = useCallback((aiType: string = 'basic') => {
     s.clearGameEnd();
-    s.emit('create_room', { base_bet: 200, ai_type: 'basic' });
+    s.emit('create_room', { base_bet: 200, ai_type: aiType });
     setLeftRoom(false);
     setPage('room');
   }, [s]);

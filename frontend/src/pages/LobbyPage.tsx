@@ -3,13 +3,14 @@ import { api } from '../utils/api';
 
 interface Props {
   onJoin: (code: string) => void;
-  onCreate: () => void;
+  onCreate: (aiType: string) => void;
 }
 
 export default function LobbyPage({ onJoin, onCreate }: Props) {
   const [rooms, setRooms] = useState<{ code: string; base_bet: number; status: string; players: number }[]>([]);
   const [searchCode, setSearchCode] = useState('');
   const [user, setUser] = useState<{ nickname: string; joy_beans: number; wins: number } | null>(null);
+  const [aiType, setAiType] = useState('basic');
 
   useEffect(() => {
     api.getMe().then(u => {
@@ -37,8 +38,13 @@ export default function LobbyPage({ onJoin, onCreate }: Props) {
       </div>
 
       {/* 操作栏 */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-        <button onClick={onCreate} style={btnStyle}>➕ 创建房间</button>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button onClick={() => onCreate(aiType)} style={btnStyle}>➕ 创建房间</button>
+        <select value={aiType} onChange={e => setAiType(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #0f3460', background: '#16213e', color: '#eee', fontSize: 13 }}>
+          <option value="basic">AI: 规则AI（新手）</option>
+          <option value="douzero">AI: DouZero（职业）</option>
+          <option value="llm">AI: LLM（人性化）</option>
+        </select>
         <div style={{ display: 'flex', gap: 4, flex: 1 }}>
           <input placeholder="输入房号搜索" value={searchCode} onChange={e => setSearchCode(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()}
             style={{ flex: 1, padding: 8, borderRadius: 6, border: '1px solid #0f3460', background: '#16213e', color: '#eee' }} />

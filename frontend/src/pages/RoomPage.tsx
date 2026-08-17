@@ -34,7 +34,7 @@ export default function RoomPage({ state, onReady, onStart, onLeave }: Props) {
                 <>
                   <span style={{ fontWeight: 'bold' }}>{s.nickname}</span>
                   {i === room.host_seat && <span style={{ marginLeft: 6, fontSize: 11, color: '#ffd700', background: '#333', padding: '1px 5px', borderRadius: 3 }}>房主</span>}
-                  {s.is_ai && <span style={{ marginLeft: 8, fontSize: 12, color: '#aaa', background: '#0f3460', padding: '2px 6px', borderRadius: 4 }}>AI</span>}
+                  {s.is_ai && <span style={{ marginLeft: 8, fontSize: 12, color: '#aaa', background: '#0f3460', padding: '2px 6px', borderRadius: 4 }}>{s.ai_type === 'douzero' ? 'DouZero' : s.ai_type === 'llm' ? 'LLM' : 'AI'}</span>}
                   {s.connected && <span style={{ marginLeft: 8, fontSize: 12, color: '#4ecca3' }}>●</span>}
                   {!s.connected && <span style={{ marginLeft: 8, fontSize: 12, color: '#666' }}>○</span>}
                   <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
