@@ -1,9 +1,13 @@
 """斗地主对局状态机：发牌/叫地主/出牌轮转/胜负判定。服务端权威。"""
 
+import logging
 import random
+import time
 from collections import Counter
 
 from . import dou_dz_adapter as dz
+
+logger = logging.getLogger("tricard.game")
 
 
 class Game:
@@ -35,6 +39,21 @@ class Game:
         self.last_bid: int | None = None  # 最后一个叫地主的座位
 
         self.listeners: list[callable] = []
+        self._turn_start: float | None = None  # 当前回合开始时间
+        self._log_entries: list[str] = []
+
+    def _log(self, msg: str) -> None:
+        logger.info(msg)
+        self._log_entries.append(msg)
+
+    def _log_move(self, seat: int, action: str, cards_str: str) -> None:
+        thinking = ""
+        if self._turn_start is not None:
+            elapsed = time.time() - self._turn_start
+            thinking = f" thinking={elapsed:.2f}s"
+        self._log(
+            f"[trick={self.trick_index}] seat={seat} {action} {cards_str}{thinking}"
+        )
 
     # ---------------------------------------------------------------- setup
 
@@ -63,12 +82,14 @@ class Game:
         self.turn = self.landlord_seat
         self.status = self.STATUS_PLAYING
         self.trick_index = 1
+        self._turn_start = time.time()
         self._emit("game_start", landlord=self.landlord_seat, bottom=dz.cards_label(bottom))
 
     def bid(self, seat: int, action: str) -> bool:
         """叫地主：action='landlord'|'pass'。返回 True 表示有效。"""
         if self.status != self.STATUS_BIDDING or seat != self.bidding_seat:
             return False
+        self._log(f"[bid] seat={seat} action={action}")
         if action == "landlord":
             self.last_bid = seat
             self.landlord_seat = seat
@@ -91,6 +112,7 @@ class Game:
         return False
 
     def _finish_bidding(self) -> None:
+        self._log(f"[bidding_end] landlord={self.landlord_seat}")
         # 底牌并入地主手牌
         self.hands[self.landlord_seat] = dz.sort_cards(self.hands[self.landlord_seat] + self.bottom)
         self.turn = self.landlord_seat
@@ -144,6 +166,7 @@ class Game:
         hand_counter.subtract(cards)
         self.hands[seat] = dz.sort_cards(list(hand_counter.elements()))
 
+        self._log_move(seat, "play", " ".join(dz.cards_label(cards)))
         self._record(seat, "play", cards)
         self.last_play = list(cards)
         self.last_play_seat = seat
@@ -159,6 +182,7 @@ class Game:
     def do_pass(self, seat: int) -> bool:
         if not self.can_pass(seat):
             return False
+        self._log_move(seat, "pass", "")
         self._record(seat, "pass", [])
         self.pass_count += 1
         self._emit("pass", seat=seat)
@@ -183,6 +207,7 @@ class Game:
 
     def _advance(self) -> None:
         self.turn = (self.turn + 1) % 3
+        self._turn_start = time.time()
 
     def _record(self, seat: int, action: str, cards: list[int]) -> None:
         self.history.append(
@@ -197,6 +222,7 @@ class Game:
         )
 
     def _finish(self, seat: int) -> None:
+        self._log(f"[game_end] winner_seat={seat} team={self.team_of(seat)}")
         self.status = self.STATUS_FINISHED
         self.winner_seat = seat
         self.winner_team = self.team_of(seat)

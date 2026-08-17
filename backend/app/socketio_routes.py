@@ -356,6 +356,9 @@ async def _human_timeout(sio, room: Room, seat: int) -> None:
     await asyncio.sleep(config.PLAY_TIMEOUT)
     g = room.game
     if room.status == "playing" and g.turn == seat:
+        # 安全检查：如果该玩家已经出了牌（_turn_start 为 None），不做自动操作
+        if g._turn_start is None:
+            return
         move = g.timeout_action(seat)
         if move is None:
             g.do_pass(seat)
