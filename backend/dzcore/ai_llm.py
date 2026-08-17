@@ -17,6 +17,7 @@ from dzcore.prompt_builder import build_prompt
 logger = logging.getLogger("tricard.llm_ai")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
 INVALID = object()  # 解析出来但不符合规则的决策
 
