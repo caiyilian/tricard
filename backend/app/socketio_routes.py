@@ -200,7 +200,43 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
         _signal_turn(room)
 
     @sio.event
-    async def bid(sid, data):
+    async def hint(sid, data):
+        meta = _ADDR_BY_SID.get(sid)
+        user = _USER_BY_SID.get(sid)
+        if not meta or not user:
+            return await sio.emit("error", {"msg": "未登录"}, to=sid)
+        room = room_manager.get(meta[0])
+        if not room or not room.game:
+            return await sio.emit("error", {"msg": "没有进行中的游戏"}, to=sid)
+        seat = room.seat_of(user["username"])
+        g = room.game
+        hint_type = (data or {}).get("type", "free")
+        ctx = {"game": g}
+
+        if hint_type == "paid":
+            # 付费提示：需 100 欢乐豆，用 DouZero 模型
+            if user["joy_beans"] < 100:
+                return await sio.emit("error", {"msg": "欢乐豆不足（需 100 豆）"}, to=sid)
+            from dzcore.ai_douzero import DouZeroAI
+            ai = DouZeroAI(name="提示")
+            move = ai.choose_action(g.hands[seat], g.last_play, ctx)
+            # 扣豆
+            with SessionLocal() as db:
+                u = db.query(User).filter(User.id == user["id"]).first()
+                if u and u.joy_beans >= 100:
+                    u.joy_beans -= 100
+                    db.commit()
+                    user["joy_beans"] = u.joy_beans
+        else:
+            # 免费提示：用规则 AI
+            from dzcore.ai_basic import BasicAI
+            ai = BasicAI(name="提示")
+            move = ai.choose_action(g.hands[seat], g.last_play, ctx)
+
+        if move is None:
+            await sio.emit("hint_result", {"cards": [], "label": "建议不出"})
+        else:
+            await sio.emit("hint_result", {"cards": move, "label": " ".join(dz.cards_label(move))})
         meta = _ADDR_BY_SID.get(sid)
         user = _USER_BY_SID.get(sid)
         if not meta or not user:

@@ -9,6 +9,7 @@ export function useSocket(token: string | null) {
   const [comments, setComments] = useState<CommentEvent[]>([]);
   const [gameEnd, setGameEnd] = useState<GameEndEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hintResult, setHintResult] = useState<{ cards: number[]; label: string } | null>(null);
   const [okAction, setOkAction] = useState<{ action: string } | null>(null);
   const [timedOut, setTimedOut] = useState<{ seat: number } | null>(null);
 
@@ -31,10 +32,11 @@ export function useSocket(token: string | null) {
     s.on('error', (d: ErrorEvent) => setError(d.msg));
     s.on('ok', (d: { action: string }) => setOkAction(d));
     s.on('timed_out', (d: { seat: number }) => setTimedOut(d));
+    s.on('hint_result', (d: { cards: number[]; label: string }) => setHintResult(d));
     s.on('redirect', (d: { to: string }) => { /* handled by App */ });
     return () => { s.disconnect(); socketRef.current = null; };
   }, [token]);
 
   const clearGameEnd = useCallback(() => setGameEnd(null), []);
-  return { connected, roomState, comments, gameEnd, error, okAction, timedOut, emit, setError, setGameEnd, setComments, clearGameEnd };
+  return { connected, roomState, comments, gameEnd, hintResult, error, okAction, timedOut, emit, setError, setGameEnd, setComments, clearGameEnd };
 }

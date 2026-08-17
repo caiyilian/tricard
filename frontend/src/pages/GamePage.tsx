@@ -4,6 +4,8 @@ import type { RoomStateMessage, GameEndEvent } from '../utils/types';
 interface Props {
   state: RoomStateMessage;
   gameEnd: GameEndEvent | null;
+  hintResult: { cards: number[]; label: string } | null;
+  onHint: (type: string) => void;
   onPlay: (cards: number[]) => void;
   onPass: () => void;
   onBid: (action: string) => void;
@@ -16,7 +18,7 @@ function cardImg(label: string): string {
   return `/cards/Poker_S${label}.png`;
 }
 
-export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeave }: Props) {
+export default function GamePage({ state, gameEnd, hintResult, onPlay, onPass, onBid, onLeave, onHint }: Props) {
   const room = state.room;
   // 如果没有结算信息且 private 为 null，表示游戏结束房间已重置
   if (!state.private && !gameEnd) {
@@ -61,6 +63,17 @@ export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeav
   }, [priv.turn, priv.status]);
 
   useEffect(() => { if (gameEnd) setShowResult(true); }, [gameEnd]);
+
+  const hintApplied = useRef(0);
+  useEffect(() => {
+    if (hintResult && hintResult.cards && hintResult.cards.length > 0) {
+      const hintSet = new Set(hintResult.cards.map(c => hand.indexOf(c)).filter(i => i >= 0));
+      if (hintSet.size > 0) {
+        setSelected(hintSet);
+        selectedRef.current = hintSet;
+      }
+    }
+  }, [hintResult]);
 
   const toggle = useCallback((idx: number) => {
     setSelected(s => {

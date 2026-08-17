@@ -59,6 +59,10 @@ export default function App() {
     s.emit('bid', { action });
   }, [s]);
 
+  const handleHint = useCallback((type: string) => {
+    s.emit('hint', { type });
+  }, [s]);
+
   // 当 room_state 的 status 变为 playing → 进入游戏页；gameEnd 时留在游戏页显示结算
   const roomStatus = s.roomState?.room?.status;
   const gameStatus = s.roomState?.private?.status;
@@ -78,7 +82,7 @@ export default function App() {
           <div style={{ color: '#eee', textAlign: 'center', padding: 40 }}>加入房间中...</div>
         )
       ) : (
-        <GamePage state={s.roomState!} gameEnd={s.gameEnd} onPlay={handlePlay} onPass={handlePass} onBid={handleBid} onLeave={handleLeave} />
+        <GamePage state={s.roomState!} gameEnd={s.gameEnd} hintResult={s.hintResult} onPlay={handlePlay} onPass={handlePass} onBid={handleBid} onLeave={handleLeave} onHint={handleHint} />
       )}
     </div>
   );
