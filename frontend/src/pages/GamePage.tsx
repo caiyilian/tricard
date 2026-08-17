@@ -18,7 +18,16 @@ function cardImg(label: string): string {
 
 export default function GamePage({ state, gameEnd, onPlay, onPass, onBid, onLeave }: Props) {
   const room = state.room;
-  const priv = state.private!;
+  // 如果 private 为 null，表示游戏已结束房间重置，只显示结算
+  if (!state.private) {
+    return (
+      <div style={{ maxWidth: 500, margin: '60px auto', padding: 24, background: '#1a1a2e', borderRadius: 12, color: '#eee', textAlign: 'center' }}>
+        <h2 style={{ marginBottom: 20 }}>游戏结束</h2>
+        <button onClick={onLeave} style={{ padding: '12px 28px', backgroundColor: '#e94560', color: '#fff', border: 'none', borderRadius: 6, fontSize: 16, cursor: 'pointer' }}>返回大厅</button>
+      </div>
+    );
+  }
+  const priv = state.private;
   const hand = priv.hand || [];
   const handLabels = priv.hand_labels || [];
   const remaining = priv.remaining || [0, 0, 0];
