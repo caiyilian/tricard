@@ -428,6 +428,7 @@ export default function GamePage({ state, gameEnd, hintResult, comments, onPlay,
         <div className="tc-panel" style={{ padding: '6px 16px', fontSize: 13 }}>
           💣 {priv!.bomb_count} · <span key={priv!.bomb_count} style={{ display: 'inline-block', color: 'var(--gold)', fontWeight: 800, animation: 'multiplierPulse .5s ease' }}>倍数 ×{multiplier}</span>
           {' · '}{priv!.landlord_seat === 0 ? '👑 我是地主' : '🌾 我是农民'}
+          {' '}<button onClick={onLeave} style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--ink-dim)', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}>退出</button>
         </div>
       </div>
 
@@ -472,7 +473,8 @@ export default function GamePage({ state, gameEnd, hintResult, comments, onPlay,
       <div style={{ position: 'absolute', bottom: 196, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 14, zIndex: 10, height: 46 }}>
         {priv!.can_act && canBeatAny && (
           <>
-            <button className="tc-btn secondary" onClick={() => onHint('play')}>提示</button>
+            <button className="tc-btn secondary" onClick={() => onHint('free')}>提示</button>
+            <button className="tc-btn secondary" title="DouZero 职业提示，100 欢乐豆" onClick={() => onHint('paid')}>神算子·100豆</button>
             <button className="tc-btn gold" style={{ fontSize: 17, padding: '10px 40px' }} onClick={handlePlay} disabled={selected.size === 0}>出牌</button>
             <button className="tc-btn secondary" onClick={handlePass}>不出</button>
           </>
