@@ -21,7 +21,15 @@ export interface RoomSnapshot {
   those_ready: string[];
 }
 
+export interface HistoryEvent {
+  seat: number;
+  action: 'play' | 'pass' | 'bid';
+  trick: number;
+  labels?: string[];
+}
+
 export interface PrivateSnapshot {
+  status: 'bidding' | 'playing' | 'finished';
   turn: number | null;
   last_play: number[];
   last_play_labels: string[];
@@ -34,6 +42,11 @@ export interface PrivateSnapshot {
   landlord_seat: number | null;
   bottom: string[];
   can_act: boolean;
+  can_beat_any?: boolean;
+  can_bid?: boolean;
+  bidding_seat?: number;
+  bidders?: Record<number, boolean>;
+  history?: HistoryEvent[];
 }
 
 export interface RoomStateMessage {

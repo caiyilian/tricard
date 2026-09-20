@@ -33,7 +33,7 @@ export function useSocket(token: string | null) {
     s.on('ok', (d: { action: string }) => setOkAction(d));
     s.on('timed_out', (d: { seat: number }) => setTimedOut(d));
     s.on('hint_result', (d: { cards: number[]; label: string }) => setHintResult(d));
-    s.on('redirect', (d: { to: string }) => { /* handled by App */ });
+    s.on('redirect', () => { /* handled by App */ });
     return () => { s.disconnect(); socketRef.current = null; };
   }, [token]);
 
