@@ -7,36 +7,37 @@ import GamePage from './pages/GamePage';
 
 export default function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
-  const [page, setPage] = useState<'lobby' | 'room' | 'game'>('lobby');
   const [leftRoom, setLeftRoom] = useState(false);
 
   const s = useSocket(token);
 
   const handleLogin = useCallback((t: string) => {
     setToken(t);
-    setPage('lobby');
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    setToken(null);
   }, []);
 
   const handleCreate = useCallback((aiType: string = 'basic') => {
     s.clearGameEnd();
+    s.setComments([]);
     s.emit('create_room', { base_bet: 200, ai_type: aiType });
     setLeftRoom(false);
-    setPage('room');
   }, [s]);
 
   const handleJoin = useCallback((code: string) => {
     s.clearGameEnd();
+    s.setComments([]);
     s.emit('join_room', { code });
-    setMyCode(code);
     setLeftRoom(false);
-    setPage('room');
   }, [s]);
 
   const handleLeave = useCallback(() => {
     s.clearGameEnd();
+    s.setComments([]);
     s.emit('leave_room');
     setLeftRoom(true);
-    setPage('lobby');
   }, [s]);
 
   const handleReady = useCallback(() => {
@@ -70,19 +71,20 @@ export default function App() {
   const nextPage = leftRoom ? 'lobby' : (roomStatus === 'playing' || gameStatus === 'bidding' || hasGameEnd) ? 'game' : (roomStatus === 'waiting' ? 'room' : 'lobby');
 
   return (
-    <div style={{ background: '#0f3460', minHeight: '100vh', overflow: 'auto' }}>
+    <div style={{ minHeight: '100vh', overflow: 'auto' }}>
       {!token ? (
         <LoginPage onLogin={handleLogin} />
       ) : nextPage === 'lobby' ? (
-        <LobbyPage onJoin={handleJoin} onCreate={handleCreate} />
+        <LobbyPage onJoin={handleJoin} onCreate={handleCreate} onLogout={handleLogout} />
       ) : nextPage === 'room' ? (
         s.roomState ? (
           <RoomPage state={s.roomState} onReady={handleReady} onStart={handleStart} onLeave={handleLeave} />
         ) : (
-          <div style={{ color: '#eee', textAlign: 'center', padding: 40 }}>加入房间中...</div>
+          <div style={{ color: 'var(--ink)', textAlign: 'center', padding: 40 }}>加入房间中…</div>
         )
       ) : (
-        <GamePage state={s.roomState!} gameEnd={s.gameEnd} hintResult={s.hintResult} onPlay={handlePlay} onPass={handlePass} onBid={handleBid} onLeave={handleLeave} onHint={handleHint} />
+        <GamePage state={s.roomState!} gameEnd={s.gameEnd} hintResult={s.hintResult} comments={s.comments}
+          onPlay={handlePlay} onPass={handlePass} onBid={handleBid} onLeave={handleLeave} onHint={handleHint} />
       )}
     </div>
   );
